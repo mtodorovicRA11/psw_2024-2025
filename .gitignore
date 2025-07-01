@@ -1,0 +1,50 @@
+# Build results
+bin/
+obj/
+out/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Rider/VSCode/VS
+.idea/
+.vscode/
+.vs/
+
+# Dotnet tools
+*.dbmdl
+*.pdb
+*.cache
+*.log
+
+# EF Core Migrations
+Migrations/
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Npm/Node (za Angular frontend)
+node_modules/
+dist/
+npm-debug.log
+yarn-error.log
+
+# Secrets
+secrets.json
+
+# Others
+*.swp
+*.bak
+*.tmp
+*.old
+*.orig 
