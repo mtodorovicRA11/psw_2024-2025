@@ -20,6 +20,8 @@ public class User
     public int BonusPoints { get; set; }
     public bool IsMalicious { get; set; }
     public bool IsBlocked { get; set; }
+    public int AwardPoints { get; set; } // Broj bodova za nagrađivanje vodiča
+    public bool IsAwardedGuide { get; set; } // Status nagrađenog vodiča
 }
 
 public enum Interest

@@ -10,7 +10,7 @@ public class TourAppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Tour> Tours => Set<Tour>();
     public DbSet<KeyPoint> KeyPoints => Set<KeyPoint>();
-    public DbSet<Purchase> Purchases => Set<Purchase>();
+    public DbSet<Purchase> Purchases { get; set; }
     public DbSet<TourRating> TourRatings => Set<TourRating>();
     public DbSet<TourProblem> TourProblems => Set<TourProblem>();
     public DbSet<TourProblemEvent> TourProblemEvents => Set<TourProblemEvent>();
