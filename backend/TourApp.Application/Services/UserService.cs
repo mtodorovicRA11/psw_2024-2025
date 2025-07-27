@@ -89,4 +89,50 @@ public class UserService
         );
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    public async Task CheckAndMarkMaliciousTouristAsync(Guid touristId)
+    {
+        var rejectedProblems = await _dbContext.TourProblems.CountAsync(p => p.TouristId == touristId && p.Status == ProblemStatus.Rejected);
+        var user = await _dbContext.Users.FindAsync(touristId);
+        if (user != null && rejectedProblems >= 10)
+        {
+            user.IsMalicious = true;
+            await _dbContext.SaveChangesAsync();
+        }
+    }
+
+    public async Task CheckAndMarkMaliciousGuideAsync(Guid guideId)
+    {
+        var cancelledTours = await _dbContext.Tours.CountAsync(t => t.GuideId == guideId && t.State == TourState.Cancelled);
+        var user = await _dbContext.Users.FindAsync(guideId);
+        if (user != null && cancelledTours >= 10)
+        {
+            user.IsMalicious = true;
+            await _dbContext.SaveChangesAsync();
+        }
+    }
+
+    public async Task<List<User>> GetMaliciousUsersAsync()
+    {
+        return await _dbContext.Users.Where(u => u.IsMalicious).ToListAsync();
+    }
+
+    public async Task BlockUserAsync(Guid userId, EmailService emailService)
+    {
+        var user = await _dbContext.Users.FindAsync(userId);
+        if (user == null)
+            throw new Exception("User not found");
+        user.IsBlocked = true;
+        await _dbContext.SaveChangesAsync();
+        await emailService.SendEmailAsync(user.Email, "Obaveštenje o blokadi naloga", "Vaš nalog je blokiran od strane administratora.");
+    }
+
+    public async Task UnblockUserAsync(Guid userId)
+    {
+        var user = await _dbContext.Users.FindAsync(userId);
+        if (user == null)
+            throw new Exception("User not found");
+        user.IsBlocked = false;
+        await _dbContext.SaveChangesAsync();
+    }
 } 

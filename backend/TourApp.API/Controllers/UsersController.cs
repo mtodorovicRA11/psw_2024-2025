@@ -3,6 +3,7 @@ using TourApp.Application.DTOs;
 using TourApp.Application.Services;
 using TourApp.Infrastructure;
 using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Authorization;
 
 namespace TourApp.API.Controllers;
 
@@ -37,6 +38,44 @@ public class UsersController : ControllerBase
         {
             var response = await _userService.LoginAsync(request, configuration);
             return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("malicious")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetMaliciousUsers()
+    {
+        var users = await _userService.GetMaliciousUsersAsync();
+        return Ok(users);
+    }
+
+    [HttpPost("block/{userId}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> BlockUser([FromRoute] Guid userId, [FromServices] EmailService emailService)
+    {
+        try
+        {
+            await _userService.BlockUserAsync(userId, emailService);
+            return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("unblock/{userId}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UnblockUser([FromRoute] Guid userId)
+    {
+        try
+        {
+            await _userService.UnblockUserAsync(userId);
+            return Ok();
         }
         catch (Exception ex)
         {

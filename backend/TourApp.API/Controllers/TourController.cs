@@ -4,6 +4,7 @@ using TourApp.Application.Services;
 using TourApp.Domain;
 using TourApp.Infrastructure;
 using System.Security.Claims;
+using TourApp.Application.DTOs;
 
 namespace TourApp.API.Controllers;
 
@@ -177,6 +178,44 @@ public class TourController : ControllerBase
         }
     }
 
+    [HttpPost("report-problem")]
+    [Authorize(Roles = "Tourist")]
+    public async Task<IActionResult> ReportProblem([FromBody] ReportProblemRequest request)
+    {
+        var touristId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (touristId == null)
+            return Forbid();
+        try
+        {
+            var problem = await _tourService.ReportProblemAsync(request, Guid.Parse(touristId));
+            return Ok(problem);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("update-problem-status")]
+    [Authorize(Roles = "Guide,Admin")]
+    public async Task<IActionResult> UpdateProblemStatus([FromBody] UpdateProblemStatusRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var role = User.FindFirstValue(System.Security.Claims.ClaimTypes.Role);
+        if (userId == null || role == null)
+            return Forbid();
+        try
+        {
+            var userRole = (TourApp.Domain.UserRole)Enum.Parse(typeof(TourApp.Domain.UserRole), role);
+            var problem = await _tourService.UpdateProblemStatusAsync(request, Guid.Parse(userId), userRole);
+            return Ok(problem);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpGet("guide-report")]
     [Authorize(Roles = "Guide")]
     public async Task<IActionResult> GetGuideMonthlyReport([FromQuery] int year, [FromQuery] int month)
@@ -186,5 +225,35 @@ public class TourController : ControllerBase
             return Forbid();
         var report = await _tourService.GetGuideMonthlyReportAsync(Guid.Parse(guideId), year, month);
         return Ok(report);
+    }
+
+    [HttpGet("problems/tourist")]
+    [Authorize(Roles = "Tourist")]
+    public async Task<IActionResult> GetProblemsForTourist()
+    {
+        var touristId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (touristId == null)
+            return Forbid();
+        var problems = await _tourService.GetProblemsForTouristAsync(Guid.Parse(touristId));
+        return Ok(problems);
+    }
+
+    [HttpGet("problems/guide")]
+    [Authorize(Roles = "Guide")]
+    public async Task<IActionResult> GetProblemsForGuide()
+    {
+        var guideId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (guideId == null)
+            return Forbid();
+        var problems = await _tourService.GetProblemsForGuideAsync(Guid.Parse(guideId));
+        return Ok(problems);
+    }
+
+    [HttpGet("problems/admin")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllProblems()
+    {
+        var problems = await _tourService.GetAllProblemsAsync();
+        return Ok(problems);
     }
 } 

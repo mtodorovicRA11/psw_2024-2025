@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using TourApp.Application.DTOs;
 using TourApp.Domain;
 using TourApp.Infrastructure;
@@ -192,6 +193,66 @@ public class TourService
         return rating;
     }
 
+    public async Task<TourProblem> ReportProblemAsync(ReportProblemRequest request, Guid touristId)
+    {
+        var purchase = await _dbContext.Purchases.FirstOrDefaultAsync(p => p.TourId == request.TourId && p.TouristId == touristId);
+        if (purchase == null)
+            throw new Exception("You can only report problems for tours you have purchased");
+        var problem = new TourProblem
+        {
+            Id = Guid.NewGuid(),
+            TourId = request.TourId,
+            TouristId = touristId,
+            Title = request.Title,
+            Description = request.Description,
+            Status = ProblemStatus.Pending,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow,
+            Events = new List<TourProblemEvent>()
+        };
+        problem.Events.Add(new TourProblemEvent
+        {
+            Id = Guid.NewGuid(),
+            ProblemId = problem.Id,
+            EventType = "Created",
+            OccurredAt = DateTime.UtcNow,
+            Data = null
+        });
+        _dbContext.TourProblems.Add(problem);
+        await _dbContext.SaveChangesAsync();
+        return problem;
+    }
+
+    public async Task<TourProblem> UpdateProblemStatusAsync(UpdateProblemStatusRequest request, Guid userId, UserRole userRole)
+    {
+        var problem = await _dbContext.TourProblems.Include(p => p.Events).FirstOrDefaultAsync(p => p.Id == request.ProblemId);
+        if (problem == null)
+            throw new Exception("Problem not found");
+        var tour = await _dbContext.Tours.FindAsync(problem.TourId);
+        if (tour == null)
+            throw new Exception("Tour not found");
+        // Vodič može menjati status samo za svoje ture
+        if (userRole == UserRole.Guide && tour.GuideId != userId)
+            throw new Exception("Not authorized");
+        // Admin može menjati status bilo kog problema
+        // Turista ne može menjati status
+        if (userRole == UserRole.Tourist)
+            throw new Exception("Not authorized");
+        // Logika prelaska stanja
+        problem.Status = request.NewStatus;
+        problem.UpdatedAt = DateTime.UtcNow;
+        problem.Events.Add(new TourProblemEvent
+        {
+            Id = Guid.NewGuid(),
+            ProblemId = problem.Id,
+            EventType = $"StatusChangedTo_{request.NewStatus}",
+            OccurredAt = DateTime.UtcNow,
+            Data = request.Comment
+        });
+        await _dbContext.SaveChangesAsync();
+        return problem;
+    }
+
     // Korpom upravljamo u memoriji po korisniku (za demo svrhe, u realnom sistemu bi se koristila baza ili redis)
     private static readonly Dictionary<Guid, List<Guid>> _userCarts = new();
 
@@ -215,7 +276,7 @@ public class TourService
         if (_userCarts.ContainsKey(touristId))
         {
             var tourIds = _userCarts[touristId];
-            var tours = await _dbContext.Tours.Include(t => t.KeyPoints).Include(t => t.GuideId).Where(t => tourIds.Contains(t.Id)).ToListAsync();
+            var tours = await _dbContext.Tours.Where(t => tourIds.Contains(t.Id)).ToListAsync();
             foreach (var tour in tours)
             {
                 var guide = await _dbContext.Users.FindAsync(tour.GuideId);
@@ -336,5 +397,21 @@ public class TourService
             var body = $"Poštovani {user.FirstName},\n\nPreporučujemo vam novu turu '{tour.Name}' iz oblasti {tour.Category}.\n\nOpis: {tour.Description}\nCena: {tour.Price}\nDatum: {tour.Date}";
             await emailService.SendEmailAsync(user.Email, subject, body);
         }
+    }
+
+    public async Task<List<TourProblem>> GetProblemsForTouristAsync(Guid touristId)
+    {
+        return await _dbContext.TourProblems.Include(p => p.Events).Where(p => p.TouristId == touristId).ToListAsync();
+    }
+
+    public async Task<List<TourProblem>> GetProblemsForGuideAsync(Guid guideId)
+    {
+        var tourIds = await _dbContext.Tours.Where(t => t.GuideId == guideId).Select(t => t.Id).ToListAsync();
+        return await _dbContext.TourProblems.Include(p => p.Events).Where(p => tourIds.Contains(p.TourId)).ToListAsync();
+    }
+
+    public async Task<List<TourProblem>> GetAllProblemsAsync()
+    {
+        return await _dbContext.TourProblems.Include(p => p.Events).ToListAsync();
     }
 } 

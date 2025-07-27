@@ -1,0 +1,42 @@
+<div class="login-container">
+  <mat-card class="login-card">
+    <mat-card-header>
+      <mat-card-title>Prijava na sistem</mat-card-title>
+      <mat-card-subtitle>Unesite svoje podatke za prijavu</mat-card-subtitle>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <form (ngSubmit)="onLogin()" #loginForm="ngForm">
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Korisničko ime</mat-label>
+          <input matInput 
+                 [(ngModel)]="credentials.username" 
+                 name="username" 
+                 required>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Lozinka</mat-label>
+          <input matInput 
+                 type="password" 
+                 [(ngModel)]="credentials.password" 
+                 name="password" 
+                 required>
+        </mat-form-field>
+
+        <div class="error-message" *ngIf="errorMessage">
+          {{ errorMessage }}
+        </div>
+
+        <button mat-raised-button 
+                color="primary" 
+                type="submit" 
+                class="full-width"
+                [disabled]="!loginForm.form.valid || isLoading">
+          <mat-spinner diameter="20" *ngIf="isLoading"></mat-spinner>
+          <span *ngIf="!isLoading">Prijavi se</span>
+        </button>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div> 
