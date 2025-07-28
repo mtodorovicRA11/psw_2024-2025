@@ -1,0 +1,52 @@
+<div class="rate-tour-container">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Oceni turu: {{ tourName }}</mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <form (ngSubmit)="submitRating()" #rateForm="ngForm">
+        <div class="rating-section">
+          <label>Ocena:</label>
+          <div class="stars">
+            <mat-icon 
+              *ngFor="let star of [1,2,3,4,5]" 
+              [class.filled]="star <= rating.rating"
+              (click)="onStarClick(star)"
+              class="star-icon">
+              {{ star <= rating.rating ? 'star' : 'star_border' }}
+            </mat-icon>
+          </div>
+          <span class="rating-text">{{ rating.rating }}/5</span>
+        </div>
+
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Komentar</mat-label>
+          <textarea 
+            matInput 
+            [(ngModel)]="rating.comment" 
+            name="comment" 
+            rows="4" 
+            required
+            placeholder="Podelite svoje iskustvo sa turom...">
+          </textarea>
+        </mat-form-field>
+
+        <div class="error-message" *ngIf="errorMessage">
+          {{ errorMessage }}
+        </div>
+
+        <div class="form-actions">
+          <button 
+            mat-raised-button 
+            color="primary" 
+            type="submit" 
+            [disabled]="!rateForm.form.valid || isLoading">
+            <mat-spinner *ngIf="isLoading" diameter="20"></mat-spinner>
+            <span *ngIf="!isLoading">Pošalji ocenu</span>
+          </button>
+        </div>
+      </form>
+    </mat-card-content>
+  </mat-card>
+</div> 

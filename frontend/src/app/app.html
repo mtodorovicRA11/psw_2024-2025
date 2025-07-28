@@ -1,0 +1,23 @@
+<mat-toolbar class="main-toolbar">
+  <div class="toolbar-content">
+    <div class="logo-section">
+      <mat-icon class="logo-icon">explore</mat-icon>
+      <span class="app-title">{{ title }}</span>
+    </div>
+    <span class="spacer"></span>
+    <button mat-raised-button 
+            color="warn" 
+            *ngIf="authService.isLoggedIn()" 
+            (click)="logout()"
+            class="logout-btn">
+      <mat-icon>logout</mat-icon>
+      Odjavi se
+    </button>
+  </div>
+</mat-toolbar>
+
+<main class="main-content">
+  <div class="content-wrapper">
+    <router-outlet />
+  </div>
+</main>

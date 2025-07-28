@@ -1,0 +1,63 @@
+<div class="login-container">
+  <div class="login-background">
+    <div class="background-shapes">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+    </div>
+  </div>
+  
+  <mat-card class="login-card">
+    <div class="login-header">
+      <mat-icon class="login-icon">explore</mat-icon>
+      <h1 class="login-title">Dobrodošli nazad</h1>
+      <p class="login-subtitle">Prijavite se na svoj nalog</p>
+    </div>
+    
+    <mat-card-content>
+      <form (ngSubmit)="onLogin()" #loginForm="ngForm" class="login-form">
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Korisničko ime</mat-label>
+          <input matInput 
+                 [(ngModel)]="credentials.username" 
+                 name="username" 
+                 required
+                 placeholder="Unesite korisničko ime">
+          <mat-icon matSuffix>person</mat-icon>
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="form-field">
+          <mat-label>Lozinka</mat-label>
+          <input matInput 
+                 type="password" 
+                 [(ngModel)]="credentials.password" 
+                 name="password" 
+                 required
+                 placeholder="Unesite lozinku">
+          <mat-icon matSuffix>lock</mat-icon>
+        </mat-form-field>
+
+        <div class="error-message" *ngIf="errorMessage">
+          <mat-icon>error</mat-icon>
+          <span>{{ errorMessage }}</span>
+        </div>
+
+        <button mat-raised-button 
+                color="primary" 
+                type="submit" 
+                class="login-button"
+                [disabled]="!loginForm.form.valid || isLoading">
+          <mat-spinner diameter="20" *ngIf="isLoading"></mat-spinner>
+          <span *ngIf="!isLoading">Prijavi se</span>
+        </button>
+      </form>
+    </mat-card-content>
+    
+    <div class="login-footer">
+      <div class="register-link">
+        <span>Nemate nalog? </span>
+        <a routerLink="/register" class="register-btn">Registrujte se</a>
+      </div>
+    </div>
+  </mat-card>
+</div> 

@@ -1,0 +1,253 @@
+<div class="dashboard-container">
+  <header class="dashboard-header">
+    <div class="header-content">
+      <div class="header-left">
+        <mat-icon class="header-icon">person</mat-icon>
+        <h1>Vodič Dashboard</h1>
+      </div>
+    </div>
+  </header>
+
+  <div class="dashboard-content">
+    <mat-tab-group class="dashboard-tabs">
+      <!-- Tab za moje ture -->
+      <mat-tab label="Moje ture">
+        <div class="tab-content">
+          <div class="actions-bar">
+            <div class="filters-section">
+              <mat-form-field appearance="outline" class="filter-field">
+                <mat-label>Status</mat-label>
+                <mat-select [(ngModel)]="selectedState" (selectionChange)="onStateChange()">
+                  <mat-option value="">Svi statusi</mat-option>
+                  <mat-option *ngFor="let state of states" [value]="state.value">
+                    {{ state.label }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="action-buttons">
+              <button mat-raised-button color="primary" (click)="showCreateForm = true" class="action-btn">
+                <mat-icon>add</mat-icon>
+                Kreiraj novu turu
+              </button>
+              <button mat-raised-button color="accent" (click)="toggleMap()" class="action-btn">
+                <mat-icon>{{ showMap ? 'list' : 'map' }}</mat-icon>
+                {{ showMap ? 'Prikaži listu' : 'Prikaži mapu' }}
+              </button>
+            </div>
+          </div>
+
+          <div *ngIf="showMap" class="map-section">
+            <app-map [tours]="tourRoutes"></app-map>
+          </div>
+
+          <div *ngIf="!showMap" class="tours-section">
+            <div class="tours-grid" *ngIf="!isLoading">
+              <mat-card *ngFor="let tour of tours" class="tour-card">
+                <div class="tour-header">
+                  <div class="tour-badges">
+                    <span class="badge status-badge" [class]="'status-' + tour.State.toLowerCase()">
+                      {{ getStateLabel(tour.State) }}
+                    </span>
+                    <span class="badge category-badge">{{ getCategoryLabel(tour.Category) }}</span>
+                  </div>
+                  <h3 class="tour-title">{{ tour.Name }}</h3>
+                </div>
+                
+                <div class="tour-content">
+                  <p class="tour-description">{{ tour.Description }}</p>
+                  <div class="tour-details">
+                    <div class="detail-item">
+                      <mat-icon>location_on</mat-icon>
+                      <span>{{ tour.KeyPoints?.length || 0 }} tačaka</span>
+                    </div>
+                    <div class="detail-item">
+                      <mat-icon>category</mat-icon>
+                      <span>{{ getCategoryLabel(tour.Category) }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <mat-icon>fitness_center</mat-icon>
+                      <span>{{ getDifficultyLabel(tour.Difficulty) }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <mat-icon>event</mat-icon>
+                      <span>{{ tour.Date | date:'dd.MM.yyyy' }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <mat-icon>attach_money</mat-icon>
+                      <span>{{ tour.Price | currency:'RSD' }}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="tour-actions">
+                  <button 
+                    mat-raised-button 
+                    color="accent" 
+                    *ngIf="tour.State === 'Draft'"
+                    (click)="addKeyPoint(tour)"
+                    class="action-btn">
+                    <mat-icon>add_location</mat-icon>
+                    Dodaj tačku
+                  </button>
+                  <button 
+                    mat-raised-button 
+                    color="primary" 
+                    *ngIf="tour.State === 'Draft'"
+                    (click)="publishTour(tour.Id)"
+                    class="action-btn">
+                    <mat-icon>publish</mat-icon>
+                    Objavi
+                  </button>
+                  <button 
+                    mat-raised-button 
+                    color="warn" 
+                    *ngIf="tour.State === 'Published'"
+                    (click)="cancelTour(tour.Id)"
+                    class="action-btn">
+                    <mat-icon>cancel</mat-icon>
+                    Otkaži
+                  </button>
+                </div>
+              </mat-card>
+            </div>
+
+            <div class="loading-container" *ngIf="isLoading">
+              <mat-spinner></mat-spinner>
+              <p>Učitavanje tura...</p>
+            </div>
+
+            <div class="no-tours" *ngIf="!isLoading && tours.length === 0">
+              <mat-icon>add_location</mat-icon>
+              <h3>Nemate kreiranih tura</h3>
+              <p>Kreirajte svoju prvu turu da počnete sa radom</p>
+              <button mat-raised-button color="primary" (click)="showCreateForm = true" class="create-first-btn">
+                <mat-icon>add</mat-icon>
+                Kreiraj prvu turu
+              </button>
+            </div>
+          </div>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
+
+  <!-- Modal za kreiranje ture -->
+  <div class="modal-overlay" *ngIf="showCreateForm" (click)="!isCreatingTour && (showCreateForm = false)">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Kreiraj novu turu</mat-card-title>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <form (ngSubmit)="createTour()" #createForm="ngForm">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Naziv ture</mat-label>
+              <input matInput [(ngModel)]="newTour.Name" name="Name" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Opis</mat-label>
+              <textarea matInput [(ngModel)]="newTour.Description" name="Description" rows="4" required></textarea>
+            </mat-form-field>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Kategorija</mat-label>
+                <mat-select [(ngModel)]="newTour.Category" name="Category" required>
+                  <mat-option *ngFor="let category of categories" [value]="category.value">
+                    {{ category.label }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Težina</mat-label>
+                <mat-select [(ngModel)]="newTour.Difficulty" name="Difficulty" required>
+                  <mat-option *ngFor="let difficulty of difficulties" [value]="difficulty.value">
+                    {{ difficulty.label }}
+                  </mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Cena</mat-label>
+                <input matInput type="number" [(ngModel)]="newTour.Price" name="Price" min="0" required>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Datum</mat-label>
+                <input matInput type="date" [(ngModel)]="newTour.Date" name="Date" required>
+              </mat-form-field>
+            </div>
+
+            <div class="form-actions">
+              <button mat-button type="button" (click)="showCreateForm = false" [disabled]="isCreatingTour">
+                Otkaži
+              </button>
+              <button mat-raised-button color="primary" type="submit" [disabled]="!createForm.form.valid || isCreatingTour">
+                <mat-icon>{{ isCreatingTour ? 'hourglass_empty' : 'add' }}</mat-icon>
+                {{ isCreatingTour ? 'Kreiranje...' : 'Kreiraj turu' }}
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+
+  <!-- Modal za dodavanje key point-a -->
+  <div class="modal-overlay" *ngIf="showKeyPointModal" (click)="closeKeyPointModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Dodaj tačku na mapi</mat-card-title>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <form (ngSubmit)="createKeyPoint()" #keyPointForm="ngForm">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Naziv tačke</mat-label>
+              <input matInput [(ngModel)]="newKeyPoint.Name" name="Name" required>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Opis</mat-label>
+              <textarea matInput [(ngModel)]="newKeyPoint.Description" name="Description" rows="3" required></textarea>
+            </mat-form-field>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Geografska širina</mat-label>
+                <input matInput type="number" [(ngModel)]="newKeyPoint.Latitude" name="Latitude" step="0.000001" required>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Geografska dužina</mat-label>
+                <input matInput type="number" [(ngModel)]="newKeyPoint.Longitude" name="Longitude" step="0.000001" required>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>URL slike (opciono)</mat-label>
+              <input matInput [(ngModel)]="newKeyPoint.ImageUrl" name="ImageUrl">
+            </mat-form-field>
+
+            <div class="form-actions">
+              <button mat-button type="button" (click)="closeKeyPointModal()">
+                Otkaži
+              </button>
+              <button mat-raised-button color="primary" type="submit" [disabled]="!keyPointForm.form.valid">
+                Dodaj tačku
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+</div> 
