@@ -10,9 +10,11 @@ export interface Problem {
   TourName: string;
   TouristId: string;
   TouristName: string;
+  Title: string;
   Description: string;
   Status: string;
-  ReportedAt: string;
+  CreatedAt: string;
+  UpdatedAt: string;
 }
 
 @Injectable({

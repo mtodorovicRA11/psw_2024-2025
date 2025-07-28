@@ -285,8 +285,16 @@ public class TourController : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> GetAllProblems()
     {
-        var problems = await _tourService.GetAllProblemsAsync();
-        return Ok(problems);
+        try
+        {
+            var problems = await _tourService.GetAllProblemsAsync();
+            return Ok(problems);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting all problems: {ex.Message}");
+            return StatusCode(500, new { error = ex.Message });
+        }
     }
 
     [HttpPost("create-test-tours")]

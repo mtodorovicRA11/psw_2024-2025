@@ -222,17 +222,8 @@ public class TourService
             Description = request.Description,
             Status = ProblemStatus.Pending,
             CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow,
-            Events = new List<TourProblemEvent>()
+            UpdatedAt = DateTime.UtcNow
         };
-        problem.Events.Add(new TourProblemEvent
-        {
-            Id = Guid.NewGuid(),
-            ProblemId = problem.Id,
-            EventType = "Created",
-            OccurredAt = DateTime.UtcNow,
-            Data = null
-        });
         _dbContext.TourProblems.Add(problem);
         await _dbContext.SaveChangesAsync();
 
@@ -247,7 +238,7 @@ public class TourService
 
     public async Task<TourProblem> UpdateProblemStatusAsync(UpdateProblemStatusRequest request, Guid userId, UserRole userRole)
     {
-        var problem = await _dbContext.TourProblems.Include(p => p.Events).FirstOrDefaultAsync(p => p.Id == request.ProblemId);
+        var problem = await _dbContext.TourProblems.FirstOrDefaultAsync(p => p.Id == request.ProblemId);
         if (problem == null)
             throw new Exception("Problem not found");
         var tour = await _dbContext.Tours.FindAsync(problem.TourId);
@@ -263,14 +254,6 @@ public class TourService
         // Logika prelaska stanja
         problem.Status = request.NewStatus;
         problem.UpdatedAt = DateTime.UtcNow;
-        problem.Events.Add(new TourProblemEvent
-        {
-            Id = Guid.NewGuid(),
-            ProblemId = problem.Id,
-            EventType = $"StatusChangedTo_{request.NewStatus}",
-            OccurredAt = DateTime.UtcNow,
-            Data = request.Comment
-        });
         await _dbContext.SaveChangesAsync();
         return problem;
     }
@@ -425,17 +408,42 @@ public class TourService
 
     public async Task<List<TourProblem>> GetProblemsForTouristAsync(Guid touristId)
     {
-        return await _dbContext.TourProblems.Include(p => p.Events).Where(p => p.TouristId == touristId).ToListAsync();
+        return await _dbContext.TourProblems.Where(p => p.TouristId == touristId).ToListAsync();
     }
 
     public async Task<List<TourProblem>> GetProblemsForGuideAsync(Guid guideId)
     {
         var tourIds = await _dbContext.Tours.Where(t => t.GuideId == guideId).Select(t => t.Id).ToListAsync();
-        return await _dbContext.TourProblems.Include(p => p.Events).Where(p => tourIds.Contains(p.TourId)).ToListAsync();
+        return await _dbContext.TourProblems.Where(p => tourIds.Contains(p.TourId)).ToListAsync();
     }
 
-    public async Task<List<TourProblem>> GetAllProblemsAsync()
+    public async Task<List<AdminProblemDto>> GetAllProblemsAsync()
     {
-        return await _dbContext.TourProblems.Include(p => p.Events).ToListAsync();
+        try
+        {
+            var problems = await (from p in _dbContext.TourProblems
+                                 join t in _dbContext.Tours on p.TourId equals t.Id
+                                 join u in _dbContext.Users on p.TouristId equals u.Id
+                                 select new AdminProblemDto
+                                 {
+                                     Id = p.Id,
+                                     TourId = p.TourId,
+                                     TourName = t.Name,
+                                     TouristId = p.TouristId,
+                                     TouristName = $"{u.FirstName} {u.LastName}".Trim(),
+                                     Title = p.Title,
+                                     Description = p.Description,
+                                     Status = p.Status.ToString(),
+                                     CreatedAt = p.CreatedAt,
+                                     UpdatedAt = p.UpdatedAt
+                                 }).ToListAsync();
+
+            return problems;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in GetAllProblemsAsync: {ex.Message}");
+            throw;
+        }
     }
 } 

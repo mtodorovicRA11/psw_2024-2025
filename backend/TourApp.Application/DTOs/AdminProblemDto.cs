@@ -1,23 +1,15 @@
-namespace TourApp.Domain;
+namespace TourApp.Application.DTOs;
 
-public enum ProblemStatus
-{
-    Pending,
-    Resolved,
-    UnderReview,
-    Rejected
-}
-
-public class TourProblem
+public class AdminProblemDto
 {
     public Guid Id { get; set; }
     public Guid TourId { get; set; }
+    public string TourName { get; set; } = string.Empty;
     public Guid TouristId { get; set; }
+    public string TouristName { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public ProblemStatus Status { get; set; }
+    public string Status { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-}
-
- 
+} 

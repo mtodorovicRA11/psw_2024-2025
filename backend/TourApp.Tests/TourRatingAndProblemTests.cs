@@ -50,7 +50,7 @@ public class TourRatingAndProblemTests
     }
 
     [Fact]
-    public async Task ReportProblem_ShouldCreateProblemWithEvent()
+    public async Task ReportProblem_ShouldCreateProblem()
     {
         var dbContext = GetInMemoryDbContext();
         var service = new TourService(dbContext);
@@ -74,7 +74,5 @@ public class TourRatingAndProblemTests
         var problem = await service.ReportProblemAsync(new ReportProblemRequest { TourId = tour.Id, Title = "Problem", Description = "Opis problema" }, touristId);
         Assert.NotNull(problem);
         Assert.Equal(ProblemStatus.Pending, problem.Status);
-        Assert.Single(problem.Events);
-        Assert.Equal("Created", problem.Events[0].EventType);
     }
 } 

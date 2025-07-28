@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatTabsModule } from '@angular/material/tabs';
@@ -47,38 +47,46 @@ export class AdminDashboardComponent implements OnInit {
 
   constructor(
     private adminService: AdminService,
-    private authService: AuthService
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit() {
+    // Postavi loading stanje i pokreni učitavanje
+    this.isLoading = true;
+    this.problemsLoading = true;
+    this.cdr.detectChanges();
+    
     this.loadMaliciousUsers();
     this.loadAllProblems();
   }
 
   loadMaliciousUsers() {
-    this.isLoading = true;
     this.adminService.getMaliciousUsers().subscribe({
       next: (users: User[]) => {
         this.maliciousUsers = users;
         this.isLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error: any) => {
         console.error('Error loading malicious users:', error);
         this.isLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
 
   loadAllProblems() {
-    this.problemsLoading = true;
     this.adminService.getAllProblems().subscribe({
       next: (problems: any[]) => {
         this.allProblems = problems;
         this.problemsLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error: any) => {
         console.error('Error loading problems:', error);
         this.problemsLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
