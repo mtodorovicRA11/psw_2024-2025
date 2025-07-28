@@ -164,6 +164,9 @@ public class TourService
         _dbContext.Purchases.Add(purchase);
         await _dbContext.SaveChangesAsync();
 
+        // Remove tour from cart after successful purchase
+        await RemoveFromCartAsync(touristId, tour.Id);
+
         // Send purchase confirmation email
         await emailService.SendTourPurchaseConfirmationAsync(user.Email, user.Username, tour.Name, finalPrice);
 

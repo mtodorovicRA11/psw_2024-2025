@@ -60,4 +60,82 @@ public class EmailAndReminderTests
         await service.SendTourRecommendationsAsync(tour, emailService);
         Assert.True(true);
     }
+
+    [Fact]
+    public async Task ScheduledJobService_SendTourRemindersJob_ShouldNotThrow()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                {"Email:SmtpServer", "smtp.gmail.com"},
+                {"Email:SmtpPort", "587"},
+                {"Email:Username", "test@example.com"},
+                {"Email:Password", "testpassword"},
+                {"Email:FromEmail", "test@example.com"},
+                {"Email:FromName", "TourApp Test"}
+            })
+            .Build();
+            
+        var options = new DbContextOptionsBuilder<TourAppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new TourAppDbContext(options);
+        var emailService = new EmailService(configuration);
+        var scheduledJobService = new ScheduledJobService(dbContext, emailService);
+        
+        await scheduledJobService.SendTourRemindersJob();
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task ScheduledJobService_AwardBestGuidesJob_ShouldNotThrow()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                {"Email:SmtpServer", "smtp.gmail.com"},
+                {"Email:SmtpPort", "587"},
+                {"Email:Username", "test@example.com"},
+                {"Email:Password", "testpassword"},
+                {"Email:FromEmail", "test@example.com"},
+                {"Email:FromName", "TourApp Test"}
+            })
+            .Build();
+            
+        var options = new DbContextOptionsBuilder<TourAppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new TourAppDbContext(options);
+        var emailService = new EmailService(configuration);
+        var scheduledJobService = new ScheduledJobService(dbContext, emailService);
+        
+        await scheduledJobService.AwardBestGuidesJob();
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task ScheduledJobService_SendTourRecommendationsJob_ShouldNotThrow()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                {"Email:SmtpServer", "smtp.gmail.com"},
+                {"Email:SmtpPort", "587"},
+                {"Email:Username", "test@example.com"},
+                {"Email:Password", "testpassword"},
+                {"Email:FromEmail", "test@example.com"},
+                {"Email:FromName", "TourApp Test"}
+            })
+            .Build();
+            
+        var options = new DbContextOptionsBuilder<TourAppDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+        var dbContext = new TourAppDbContext(options);
+        var emailService = new EmailService(configuration);
+        var scheduledJobService = new ScheduledJobService(dbContext, emailService);
+        
+        await scheduledJobService.SendTourRecommendationsJob();
+        Assert.True(true);
+    }
 } 

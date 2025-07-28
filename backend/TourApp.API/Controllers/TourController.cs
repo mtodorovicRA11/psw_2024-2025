@@ -297,6 +297,36 @@ public class TourController : ControllerBase
         }
     }
 
+    [HttpPost("trigger-reminders")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> TriggerTourReminders([FromServices] ScheduledJobService scheduledJobService)
+    {
+        try
+        {
+            await scheduledJobService.SendTourRemindersJob();
+            return Ok(new { message = "Tour reminders triggered successfully" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("trigger-recommendations")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> TriggerTourRecommendations([FromServices] ScheduledJobService scheduledJobService)
+    {
+        try
+        {
+            await scheduledJobService.SendTourRecommendationsJob();
+            return Ok(new { message = "Tour recommendations triggered successfully" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpPost("create-test-tours")]
     public async Task<IActionResult> CreateTestTours()
     {

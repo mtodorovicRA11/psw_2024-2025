@@ -11,9 +11,36 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule } from '@angular/material/dialog';
+import { MatTableModule } from '@angular/material/table';
+import { MatBadgeModule } from '@angular/material/badge';
 import { TourService, Tour } from '../../../services/tour.service';
 import { AuthService } from '../../../services/auth.service';
-import { MapComponent, TourRoute, MapPoint } from '../../shared/map/map.component';
+import { MapComponent } from '../../shared/map/map.component';
+
+interface TourRoute {
+  tourId: string;
+  tourName: string;
+  points: any[];
+}
+
+interface GuideReport {
+  tourSales: TourSalesInfo[];
+  bestRatedTour?: TourRatingInfo;
+  worstRatedTour?: TourRatingInfo;
+}
+
+interface TourSalesInfo {
+  tourId: string;
+  name: string;
+  salesCount: number;
+}
+
+interface TourRatingInfo {
+  tourId: string;
+  name: string;
+  averageRating: number;
+  ratingsCount: number;
+}
 
 @Component({
   selector: 'app-guide-dashboard',
@@ -31,6 +58,8 @@ import { MapComponent, TourRoute, MapPoint } from '../../shared/map/map.componen
     MatSelectModule,
     MatTooltipModule,
     MatDialogModule,
+    MatTableModule,
+    MatBadgeModule,
     MapComponent
   ],
   templateUrl: './guide-dashboard.component.html',
@@ -44,8 +73,17 @@ export class GuideDashboardComponent implements OnInit {
   showCreateForm = false;
   showKeyPointModal = false;
   showMap = false;
+  showTourDetailsModal = false;
   tourRoutes: TourRoute[] = [];
   selectedTourForKeyPoint: Tour | null = null;
+  selectedTourForDetails: Tour | null = null;
+
+  // Report properties
+  report: GuideReport | null = null;
+  isReportLoading = false;
+  selectedYear: number = new Date().getFullYear();
+  selectedMonth: number = new Date().getMonth() + 1;
+  salesColumns: string[] = ['name', 'salesCount'];
 
   newTour = {
     Name: '',
@@ -84,6 +122,30 @@ export class GuideDashboardComponent implements OnInit {
     { value: 'Cancelled', label: 'Otkazano' }
   ];
 
+  months = [
+    { value: 1, label: 'Januar' },
+    { value: 2, label: 'Februar' },
+    { value: 3, label: 'Mart' },
+    { value: 4, label: 'April' },
+    { value: 5, label: 'Maj' },
+    { value: 6, label: 'Jun' },
+    { value: 7, label: 'Jul' },
+    { value: 8, label: 'Avgust' },
+    { value: 9, label: 'Septembar' },
+    { value: 10, label: 'Oktobar' },
+    { value: 11, label: 'Novembar' },
+    { value: 12, label: 'Decembar' }
+  ];
+
+  get availableYears(): number[] {
+    const currentYear = new Date().getFullYear();
+    const years = [];
+    for (let i = currentYear; i >= currentYear - 5; i--) {
+      years.push(i);
+    }
+    return years;
+  }
+
   constructor(
     private tourService: TourService,
     private authService: AuthService,
@@ -112,6 +174,42 @@ export class GuideDashboardComponent implements OnInit {
         });
       }
     });
+  }
+
+  loadReport() {
+    if (!this.selectedYear || !this.selectedMonth) {
+      return;
+    }
+
+    this.isReportLoading = true;
+    this.report = null;
+
+    this.tourService.getGuideReport(this.selectedYear, this.selectedMonth).subscribe({
+      next: (report: GuideReport) => {
+        this.report = report;
+        this.isReportLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('Error loading report:', error);
+        this.isReportLoading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  getTotalSales(): number {
+    if (!this.report?.tourSales) return 0;
+    return this.report.tourSales.reduce((total, tour) => total + tour.salesCount, 0);
+  }
+
+  getStars(rating: number): number[] {
+    const stars = [];
+    const fullStars = Math.floor(rating);
+    for (let i = 0; i < fullStars; i++) {
+      stars.push(1);
+    }
+    return stars;
   }
 
   createTour() {
@@ -144,13 +242,28 @@ export class GuideDashboardComponent implements OnInit {
     }
   }
 
+  onTourCreated() {
+    this.showCreateForm = false;
+    this.resetNewTour();
+    this.loadTours();
+  }
+
+  resetNewTour() {
+    this.newTour = {
+      Name: '',
+      Description: '',
+      Difficulty: '',
+      Category: '',
+      Price: 0,
+      Date: ''
+    };
+  }
+
   publishTour(tourId: string) {
     this.tourService.publishTour(tourId).subscribe({
       next: () => {
         console.log('Tour published successfully');
-        setTimeout(() => {
-          this.loadTours();
-        });
+        this.loadTours();
       },
       error: (error: any) => {
         console.error('Error publishing tour:', error);
@@ -162,9 +275,7 @@ export class GuideDashboardComponent implements OnInit {
     this.tourService.cancelTour(tourId).subscribe({
       next: () => {
         console.log('Tour cancelled successfully');
-        setTimeout(() => {
-          this.loadTours();
-        });
+        this.loadTours();
       },
       error: (error: any) => {
         console.error('Error cancelling tour:', error);
@@ -172,59 +283,28 @@ export class GuideDashboardComponent implements OnInit {
     });
   }
 
-  onStateChange() {
-    this.loadTours();
-  }
-
-  resetForm() {
-    this.newTour = {
-      Name: '',
-      Description: '',
-      Difficulty: '',
-      Category: '',
-      Price: 0,
-      Date: ''
-    };
-  }
-
-  onTourCreated() {
-    this.resetForm();
-    setTimeout(() => {
-      this.loadTours();
-      this.showCreateForm = false;
-    });
-  }
-
-  addKeyPoint(tour: Tour) {
+  selectTourForKeyPoint(tour: Tour) {
     this.selectedTourForKeyPoint = tour;
     this.showKeyPointModal = true;
-    this.resetKeyPointForm();
   }
 
-  closeKeyPointModal() {
-    this.showKeyPointModal = false;
-    this.selectedTourForKeyPoint = null;
-    this.resetKeyPointForm();
-  }
-
-  createKeyPoint() {
+  addKeyPoint() {
     if (this.selectedTourForKeyPoint && this.newKeyPoint.Name && this.newKeyPoint.Description) {
       const keyPointData = {
-        TourId: this.selectedTourForKeyPoint.Id,
-        Name: this.newKeyPoint.Name,
-        Description: this.newKeyPoint.Description,
-        Latitude: this.newKeyPoint.Latitude,
-        Longitude: this.newKeyPoint.Longitude,
-        ImageUrl: this.newKeyPoint.ImageUrl || null
+        tourId: this.selectedTourForKeyPoint.Id,
+        name: this.newKeyPoint.Name,
+        description: this.newKeyPoint.Description,
+        latitude: this.newKeyPoint.Latitude,
+        longitude: this.newKeyPoint.Longitude,
+        imageUrl: this.newKeyPoint.ImageUrl
       };
 
       this.tourService.addKeyPoint(keyPointData).subscribe({
         next: () => {
           console.log('Key point added successfully');
-          this.closeKeyPointModal();
-          setTimeout(() => {
-            this.loadTours(); // Reload tours to get updated key points
-          });
+          this.showKeyPointModal = false;
+          this.resetNewKeyPoint();
+          this.loadTours();
         },
         error: (error: any) => {
           console.error('Error adding key point:', error);
@@ -233,7 +313,16 @@ export class GuideDashboardComponent implements OnInit {
     }
   }
 
-  resetKeyPointForm() {
+  createKeyPoint() {
+    this.addKeyPoint();
+  }
+
+  closeKeyPointModal() {
+    this.showKeyPointModal = false;
+    this.resetNewKeyPoint();
+  }
+
+  resetNewKeyPoint() {
     this.newKeyPoint = {
       Name: '',
       Description: '',
@@ -241,30 +330,17 @@ export class GuideDashboardComponent implements OnInit {
       Longitude: 0,
       ImageUrl: ''
     };
+    this.selectedTourForKeyPoint = null;
   }
 
-
-
-  getStateLabel(state: string): string {
-    const stateObj = this.states.find(s => s.value === state);
-    return stateObj ? stateObj.label : state;
+  showTourDetails(tour: Tour) {
+    this.selectedTourForDetails = tour;
+    this.showTourDetailsModal = true;
   }
 
-  getCategoryLabel(category: string): string {
-    const categoryObj = this.categories.find(c => c.value === category);
-    return categoryObj ? categoryObj.label : category;
-  }
-
-  getDifficultyLabel(difficulty: string): string {
-    const difficultyObj = this.difficulties.find(d => d.value === difficulty);
-    return difficultyObj ? difficultyObj.label : difficulty;
-  }
-
-  toggleMap() {
-    this.showMap = !this.showMap;
-    if (this.showMap) {
-      this.loadTourRoutes();
-    }
+  closeTourDetailsModal() {
+    this.showTourDetailsModal = false;
+    this.selectedTourForDetails = null;
   }
 
   loadTourRoutes() {
@@ -279,5 +355,34 @@ export class GuideDashboardComponent implements OnInit {
         longitude: point.Longitude
       })) || []
     })).filter(route => route.points.length > 0);
+  }
+
+  getStateLabel(state: string): string {
+    switch (state) {
+      case 'Draft': return 'Skica';
+      case 'Published': return 'Objavljeno';
+      case 'Cancelled': return 'Otkazano';
+      default: return state;
+    }
+  }
+
+  getCategoryLabel(category: string): string {
+    switch (category) {
+      case 'Nature': return 'Priroda';
+      case 'Art': return 'Umetnost';
+      case 'Sport': return 'Sport';
+      case 'Shopping': return 'Kupovina';
+      case 'Food': return 'Hrana';
+      default: return category;
+    }
+  }
+
+  getDifficultyLabel(difficulty: string): string {
+    switch (difficulty) {
+      case 'Easy': return 'Lako';
+      case 'Medium': return 'Srednje';
+      case 'Hard': return 'Teško';
+      default: return difficulty;
+    }
   }
 } 

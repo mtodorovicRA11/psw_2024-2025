@@ -76,6 +76,10 @@ export class TourService {
     return this.http.post(`${environment.apiUrl}/api/Tour/purchase-multiple`, request);
   }
 
+  getGuideReport(year: number, month: number): Observable<any> {
+    return this.http.get(`${environment.apiUrl}/api/Tour/guide-report?year=${year}&month=${month}`);
+  }
+
   getMyTours(state?: string | null): Observable<Tour[]> {
     let params: any = {};
     if (state) params.state = state;

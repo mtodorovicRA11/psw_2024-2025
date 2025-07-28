@@ -7,6 +7,8 @@ using Microsoft.OpenApi.Models;
 using TourApp.Application.Services;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Hangfire;
+using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +17,15 @@ builder.Services.AddDbContext<TourAppDbContext>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection")
     ));
+
+// Add Hangfire
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHangfireServer();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -37,8 +48,9 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.Converters.Add(new JsonStringConverter());
     });
 
-// Register EmailService
+// Register services
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<ScheduledJobService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -83,9 +95,39 @@ app.UseHttpsRedirection();
 // Use CORS
 app.UseCors("AllowAngularDevServer");
 
+// Use Hangfire Dashboard
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireAuthorizationFilter() }
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Schedule recurring jobs
+using (var scope = app.Services.CreateScope())
+{
+    var recurringJobManager = scope.ServiceProvider.GetRequiredService<IRecurringJobManager>();
+    
+    // Schedule tour reminders - runs every hour
+    recurringJobManager.AddOrUpdate<ScheduledJobService>(
+        "tour-reminders",
+        service => service.SendTourRemindersJob(),
+        Cron.Hourly);
+    
+    // Schedule best guide awards - runs on the 1st of each month at 9 AM
+    recurringJobManager.AddOrUpdate<ScheduledJobService>(
+        "best-guide-awards",
+        service => service.AwardBestGuidesJob(),
+        Cron.Monthly(1, 9));
+    
+    // Schedule tour recommendations - runs daily at 10 AM
+    recurringJobManager.AddOrUpdate<ScheduledJobService>(
+        "tour-recommendations",
+        service => service.SendTourRecommendationsJob(),
+        Cron.Daily(10));
+}
 
 app.Run();
 
@@ -100,5 +142,16 @@ public class JsonStringConverter : JsonConverter<Guid>
     public override void Write(Utf8JsonWriter writer, Guid value, JsonSerializerOptions options)
     {
         writer.WriteStringValue(value.ToString());
+    }
+}
+
+// Hangfire authorization filter for dashboard access
+public class HangfireAuthorizationFilter : IDashboardAuthorizationFilter
+{
+    public bool Authorize(DashboardContext context)
+    {
+        // For development, allow all access
+        // In production, you should implement proper authorization
+        return true;
     }
 }
