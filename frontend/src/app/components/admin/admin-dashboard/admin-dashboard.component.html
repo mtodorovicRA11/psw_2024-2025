@@ -1,0 +1,193 @@
+<div class="dashboard-container">
+  <header class="dashboard-header">
+    <h1>Admin Dashboard</h1>
+  </header>
+
+  <mat-tab-group>
+    <!-- Tab za korisnike -->
+    <mat-tab label="Upravljanje korisnicima">
+      <div class="tab-content">
+        <div class="section-header">
+          <h2>Maliciozni korisnici</h2>
+          <p>Korisnici koji su prijavljeni zbog neprikladnog ponašanja</p>
+        </div>
+
+        <div class="table-container" *ngIf="!isLoading">
+          <table mat-table [dataSource]="maliciousUsers" class="mat-elevation-z8">
+            <!-- Username Column -->
+            <ng-container matColumnDef="username">
+              <th mat-header-cell *matHeaderCellDef>Korisničko ime</th>
+              <td mat-cell *matCellDef="let user">{{ user.username }}</td>
+            </ng-container>
+
+            <!-- Email Column -->
+            <ng-container matColumnDef="email">
+              <th mat-header-cell *matHeaderCellDef>Email</th>
+              <td mat-cell *matCellDef="let user">{{ user.email }}</td>
+            </ng-container>
+
+            <!-- First Name Column -->
+            <ng-container matColumnDef="firstName">
+              <th mat-header-cell *matHeaderCellDef>Ime</th>
+              <td mat-cell *matCellDef="let user">{{ user.firstName }}</td>
+            </ng-container>
+
+            <!-- Last Name Column -->
+            <ng-container matColumnDef="lastName">
+              <th mat-header-cell *matHeaderCellDef>Prezime</th>
+              <td mat-cell *matCellDef="let user">{{ user.lastName }}</td>
+            </ng-container>
+
+            <!-- Role Column -->
+            <ng-container matColumnDef="role">
+              <th mat-header-cell *matHeaderCellDef>Uloga</th>
+              <td mat-cell *matCellDef="let user">{{ user.role }}</td>
+            </ng-container>
+
+            <!-- Is Malicious Column -->
+            <ng-container matColumnDef="isMalicious">
+              <th mat-header-cell *matHeaderCellDef>Maliciozan</th>
+              <td mat-cell *matCellDef="let user">
+                <mat-chip [color]="user.isMalicious ? 'warn' : 'primary'" selected>
+                  {{ user.isMalicious ? 'Da' : 'Ne' }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Is Blocked Column -->
+            <ng-container matColumnDef="isBlocked">
+              <th mat-header-cell *matHeaderCellDef>Blokiran</th>
+              <td mat-cell *matCellDef="let user">
+                <mat-chip [color]="user.isBlocked ? 'warn' : 'primary'" selected>
+                  {{ user.isBlocked ? 'Da' : 'Ne' }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Akcije</th>
+              <td mat-cell *matCellDef="let user">
+                <button 
+                  mat-raised-button 
+                  [color]="user.isBlocked ? 'primary' : 'warn'"
+                  [disabled]="user.isBlocked"
+                  (click)="user.isBlocked ? unblockUser(user.Id) : blockUser(user.Id)"
+                  matTooltip="{{ user.isBlocked ? 'Odblokiraj korisnika' : 'Blokiraj korisnika' }}">
+                  <mat-icon>{{ user.isBlocked ? 'lock_open' : 'block' }}</mat-icon>
+                  {{ user.isBlocked ? 'Odblokiraj' : 'Blokiraj' }}
+                </button>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          </table>
+        </div>
+
+        <div class="loading-container" *ngIf="isLoading">
+          <mat-spinner></mat-spinner>
+          <p>Učitavanje korisnika...</p>
+        </div>
+
+        <div class="no-data" *ngIf="!isLoading && maliciousUsers.length === 0">
+          <mat-icon>people</mat-icon>
+          <h3>Nema malicioznih korisnika</h3>
+          <p>Svi korisnici se ponašaju odgovorno</p>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- Tab za probleme -->
+    <mat-tab label="Prijavljeni problemi">
+      <div class="tab-content">
+        <div class="section-header">
+          <h2>Prijavljeni problemi</h2>
+          <p>Problemi prijavljeni od strane turista</p>
+        </div>
+
+        <div class="table-container" *ngIf="!problemsLoading">
+          <table mat-table [dataSource]="allProblems" class="mat-elevation-z8">
+            <!-- Tour Name Column -->
+            <ng-container matColumnDef="tourName">
+              <th mat-header-cell *matHeaderCellDef>Naziv ture</th>
+              <td mat-cell *matCellDef="let problem">{{ problem.TourName }}</td>
+            </ng-container>
+
+            <!-- Tourist Name Column -->
+            <ng-container matColumnDef="touristName">
+              <th mat-header-cell *matHeaderCellDef>Turista</th>
+              <td mat-cell *matCellDef="let problem">{{ problem.TouristName }}</td>
+            </ng-container>
+
+            <!-- Description Column -->
+            <ng-container matColumnDef="description">
+              <th mat-header-cell *matHeaderCellDef>Opis problema</th>
+              <td mat-cell *matCellDef="let problem">{{ problem.Description }}</td>
+            </ng-container>
+
+            <!-- Status Column -->
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let problem">
+                <mat-chip [color]="getStatusColor(problem.Status)" selected>
+                  {{ getStatusLabel(problem.Status) }}
+                </mat-chip>
+              </td>
+            </ng-container>
+
+            <!-- Actions Column -->
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Akcije</th>
+              <td mat-cell *matCellDef="let problem">
+                <div class="action-buttons">
+                  <button 
+                    mat-raised-button 
+                    color="accent"
+                    *ngIf="problem.Status === 'Reported'"
+                    (click)="updateProblemStatus(problem.Id, 'InProgress')"
+                    matTooltip="Preuzmi u obradu">
+                    <mat-icon>play_arrow</mat-icon>
+                    U obradi
+                  </button>
+                  <button 
+                    mat-raised-button 
+                    color="primary"
+                    *ngIf="problem.Status === 'InProgress'"
+                    (click)="updateProblemStatus(problem.Id, 'Resolved')"
+                    matTooltip="Označi kao rešeno">
+                    <mat-icon>check</mat-icon>
+                    Rešeno
+                  </button>
+                  <button 
+                    mat-raised-button 
+                    color="warn"
+                    *ngIf="problem.Status === 'Resolved'"
+                    (click)="updateProblemStatus(problem.Id, 'Closed')"
+                    matTooltip="Zatvori problem">
+                    <mat-icon>close</mat-icon>
+                    Zatvori
+                  </button>
+                </div>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="problemColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: problemColumns;"></tr>
+          </table>
+        </div>
+
+        <div class="loading-container" *ngIf="problemsLoading">
+          <mat-spinner></mat-spinner>
+          <p>Učitavanje problema...</p>
+        </div>
+
+        <div class="no-data" *ngIf="!problemsLoading && allProblems.length === 0">
+          <mat-icon>report_problem</mat-icon>
+          <h3>Nema prijavljenih problema</h3>
+          <p>Sve ture se odvijaju bez problema</p>
+        </div>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div> 

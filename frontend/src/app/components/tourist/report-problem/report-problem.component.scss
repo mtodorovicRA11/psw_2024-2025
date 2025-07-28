@@ -1,0 +1,38 @@
+.report-problem-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.full-width {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.error-message {
+  color: #f44336;
+  margin: 16px 0;
+  padding: 12px;
+  background-color: #ffebee;
+  border-radius: 4px;
+  border: 1px solid #ffcdd2;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  
+  button {
+    min-width: 150px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+}
+
+mat-spinner {
+  margin-right: 8px;
+} 

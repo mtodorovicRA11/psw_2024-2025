@@ -1,7 +1,29 @@
-import { Injectable } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, tap } from 'rxjs';
+import { Observable, of } from 'rxjs';
+import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
+
+export interface User {
+  Id: string;
+  Username: string;
+  Email: string;
+  FirstName: string;
+  LastName: string;
+  Role: string;
+  Interests: string[];
+  BonusPoints: number;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  interests: number[];
+}
 
 export interface LoginRequest {
   username: string;
@@ -9,81 +31,79 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string;
-  username: string;
-  role: string;
-}
-
-export interface User {
-  id: string;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: string;
-  interests: string[];
-  bonusPoints: number;
+  Token: string;
+  Username: string;
+  Role: string;
+  Id: string;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private currentUserSubject = new BehaviorSubject<User | null>(null);
-  public currentUser$ = this.currentUserSubject.asObservable();
+  private tokenKey = 'token';
+  private userKey = 'user';
 
-  constructor(private http: HttpClient) {
-    this.loadUserFromStorage();
-  }
+  constructor(
+    private http: HttpClient,
+    private router: Router,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {}
 
   login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/api/Users/login`, credentials)
-      .pipe(
-        tap(response => {
-          localStorage.setItem('token', response.token);
-          this.setCurrentUser(response);
-        })
-      );
+    return this.http.post<LoginResponse>(`${environment.apiUrl}/api/Users/login`, credentials);
   }
 
-  logout(): void {
-    localStorage.removeItem('token');
-    this.currentUserSubject.next(null);
+  register(data: RegisterRequest): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/api/Users/register`, data);
   }
 
-  isAuthenticated(): boolean {
-    return !!localStorage.getItem('token');
+  setToken(token: string) {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem(this.tokenKey, token);
+    }
   }
 
   getToken(): string | null {
-    return localStorage.getItem('token');
-  }
-
-  getCurrentUser(): User | null {
-    return this.currentUserSubject.value;
-  }
-
-  private setCurrentUser(loginResponse: LoginResponse): void {
-    // For now, create a basic user object from login response
-    // In a real app, you might want to fetch full user details
-    const user: User = {
-      id: '', // Would come from JWT token or separate API call
-      username: loginResponse.username,
-      email: '',
-      firstName: '',
-      lastName: '',
-      role: loginResponse.role,
-      interests: [],
-      bonusPoints: 0
-    };
-    this.currentUserSubject.next(user);
-  }
-
-  private loadUserFromStorage(): void {
-    const token = this.getToken();
-    if (token) {
-      // In a real app, you might decode the JWT token here
-      // or make an API call to get current user details
+    if (isPlatformBrowser(this.platformId)) {
+      return localStorage.getItem(this.tokenKey);
     }
+    return null;
+  }
+
+  setUser(user: any) {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.setItem(this.userKey, JSON.stringify(user));
+    }
+  }
+
+  getUser(): any {
+    if (isPlatformBrowser(this.platformId)) {
+      const user = localStorage.getItem(this.userKey);
+      return user ? JSON.parse(user) : null;
+    }
+    return null;
+  }
+
+  logout() {
+    if (isPlatformBrowser(this.platformId)) {
+      localStorage.removeItem(this.tokenKey);
+      localStorage.removeItem(this.userKey);
+    }
+    // Redirect to login page
+    this.router.navigate(['/login']);
+  }
+
+  isLoggedIn(): boolean {
+    return !!this.getToken();
+  }
+
+  loadUserFromStorage() {
+    if (isPlatformBrowser(this.platformId)) {
+      const token = localStorage.getItem(this.tokenKey);
+      const user = localStorage.getItem(this.userKey);
+      return { token, user: user ? JSON.parse(user) : null };
+    }
+    return { token: null, user: null };
   }
 } 

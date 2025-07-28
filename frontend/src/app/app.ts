@@ -25,5 +25,6 @@ export class App {
 
   logout() {
     this.authService.logout();
+    // Router navigation is now handled in AuthService
   }
 }

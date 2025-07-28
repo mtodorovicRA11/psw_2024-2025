@@ -15,6 +15,9 @@ public class TourService
 
     public async Task<Tour> CreateTourAsync(CreateTourRequest request, Guid guideId)
     {
+        // Konvertuj datum u UTC format
+        var utcDate = DateTime.SpecifyKind(request.Date, DateTimeKind.Utc);
+        
         var tour = new Tour
         {
             Id = Guid.NewGuid(),
@@ -23,7 +26,7 @@ public class TourService
             Difficulty = request.Difficulty,
             Category = request.Category,
             Price = request.Price,
-            Date = request.Date,
+            Date = utcDate,
             State = TourState.Draft,
             GuideId = guideId,
             KeyPoints = new List<KeyPoint>()

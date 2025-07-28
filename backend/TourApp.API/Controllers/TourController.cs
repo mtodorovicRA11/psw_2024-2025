@@ -29,6 +29,9 @@ public class TourController : ControllerBase
         var guideId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (guideId == null)
             return Forbid();
+        
+        Console.WriteLine($"Creating tour: Name={request.Name}, Date={request.Date}, Date.Kind={request.Date.Kind}");
+        
         try
         {
             var tour = await _tourService.CreateTourAsync(request, Guid.Parse(guideId));
@@ -36,6 +39,7 @@ public class TourController : ControllerBase
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Error creating tour: {ex.Message}");
             return BadRequest(new { error = ex.Message });
         }
     }

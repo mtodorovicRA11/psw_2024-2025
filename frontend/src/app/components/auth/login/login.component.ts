@@ -1,13 +1,15 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
-import { AuthService } from '../../../services/auth.service';
+import { AuthService, LoginResponse } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-login',
@@ -15,11 +17,13 @@ import { AuthService } from '../../../services/auth.service';
   imports: [
     CommonModule,
     FormsModule,
+    RouterModule,
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
     MatCardModule,
-    MatProgressSpinnerModule
+    MatProgressSpinnerModule,
+    MatIconModule
   ],
   templateUrl: './login.component.html',
   styleUrls: ['./login.component.scss']
@@ -45,10 +49,19 @@ export class LoginComponent {
       next: (response) => {
         this.isLoading = false;
         console.log('Login successful:', response);
+        
+        // Save token and user data
+        this.authService.setToken(response.Token);
+        this.authService.setUser({
+          id: response.Id,
+          username: response.Username,
+          role: response.Role
+        });
+        
         // Navigate based on user role
-        if (response.role === 'Admin') {
+        if (response.Role === 'Admin') {
           this.router.navigate(['/admin']);
-        } else if (response.role === 'Guide') {
+        } else if (response.Role === 'Guide') {
           this.router.navigate(['/guide']);
         } else {
           this.router.navigate(['/tours']);

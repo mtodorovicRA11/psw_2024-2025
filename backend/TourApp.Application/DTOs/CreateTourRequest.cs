@@ -10,4 +10,5 @@ public class CreateTourRequest
     public TourCategory Category { get; set; }
     public decimal Price { get; set; }
     public DateTime Date { get; set; }
+    public string GuideId { get; set; } = string.Empty;
 } 

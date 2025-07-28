@@ -33,7 +33,10 @@
             "outputMode": "server",
             "ssr": {
               "entry": "src/server.ts"
-            }
+            },
+            "allowedCommonJsDependencies": [
+              "leaflet"
+            ]
           },
           "configurations": {
             "production": {
@@ -54,7 +57,10 @@
             "development": {
               "optimization": false,
               "extractLicenses": false,
-              "sourceMap": true
+              "sourceMap": true,
+              "allowedCommonJsDependencies": [
+                "leaflet"
+              ]
             }
           },
           "defaultConfiguration": "production"
@@ -87,6 +93,9 @@
             ],
             "styles": [
               "src/styles.scss"
+            ],
+            "allowedCommonJsDependencies": [
+              "leaflet"
             ]
           }
         }

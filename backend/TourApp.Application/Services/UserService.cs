@@ -69,7 +69,8 @@ public class UserService
         {
             Token = token,
             Username = user.Username,
-            Role = user.Role.ToString()
+            Role = user.Role.ToString(),
+            Id = user.Id.ToString()
         };
     }
 
