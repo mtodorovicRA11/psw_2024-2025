@@ -10,38 +10,47 @@
 
   <div class="dashboard-content">
     <mat-tab-group class="dashboard-tabs">
-      <!-- Tab za moje ture -->
+      <!-- Tab za ture -->
       <mat-tab label="Moje ture">
+        <ng-template mat-tab-label>
+          <span>Moje ture</span>
+          <mat-icon matBadge="{{ tours?.length || 0 }}" matBadgeColor="accent" matBadgeSize="small">map</mat-icon>
+        </ng-template>
+        
         <div class="tab-content">
-          <div class="actions-bar">
-            <div class="filters-section">
-              <mat-form-field appearance="outline" class="filter-field">
-                <mat-label>Status</mat-label>
-                <mat-select [(ngModel)]="selectedState" (selectionChange)="onStateChange()">
-                  <mat-option value="">Svi statusi</mat-option>
-                  <mat-option *ngFor="let state of states" [value]="state.value">
-                    {{ state.label }}
-                  </mat-option>
-                </mat-select>
-              </mat-form-field>
-            </div>
-
-            <div class="action-buttons">
-              <button mat-raised-button color="primary" (click)="showCreateForm = true" class="action-btn">
-                <mat-icon>add</mat-icon>
-                Kreiraj novu turu
-              </button>
-              <button mat-raised-button color="accent" (click)="toggleMap()" class="action-btn">
-                <mat-icon>{{ showMap ? 'list' : 'map' }}</mat-icon>
-                {{ showMap ? 'Prikaži listu' : 'Prikaži mapu' }}
-              </button>
-            </div>
+          <div class="section-header">
+            <h2>Moje ture</h2>
+            <p>Upravljajte svojim turističkim turama</p>
           </div>
 
-          <div *ngIf="showMap" class="map-section">
+          <div class="controls">
+            <mat-form-field appearance="outline">
+              <mat-label>Filter po statusu</mat-label>
+              <mat-select [(ngModel)]="selectedState" (selectionChange)="loadTours()">
+                <mat-option value="">Svi statusi</mat-option>
+                <mat-option *ngFor="let state of states" [value]="state.value">
+                  {{ state.label }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <button mat-raised-button color="primary" (click)="showCreateForm = true" class="create-btn">
+              <mat-icon>add</mat-icon>
+              Kreiraj novu turu
+            </button>
+
+            <button mat-raised-button color="accent" (click)="showMap = !showMap" class="map-btn">
+              <mat-icon>{{ showMap ? 'list' : 'map' }}</mat-icon>
+              {{ showMap ? 'Lista' : 'Mapa' }}
+            </button>
+          </div>
+
+          <!-- Map View -->
+          <div *ngIf="showMap" class="map-container">
             <app-map [tours]="tourRoutes"></app-map>
           </div>
 
+          <!-- List View -->
           <div *ngIf="!showMap" class="tours-section">
             <div class="tours-grid" *ngIf="!isLoading">
               <mat-card *ngFor="let tour of tours" class="tour-card">
@@ -82,30 +91,19 @@
                 </div>
                 
                 <div class="tour-actions">
-                  <button 
-                    mat-raised-button 
-                    color="accent" 
-                    *ngIf="tour.State === 'Draft'"
-                    (click)="addKeyPoint(tour)"
-                    class="action-btn">
+                  <button mat-raised-button color="primary" (click)="selectTourForKeyPoint(tour)" class="action-btn">
                     <mat-icon>add_location</mat-icon>
                     Dodaj tačku
                   </button>
-                  <button 
-                    mat-raised-button 
-                    color="primary" 
-                    *ngIf="tour.State === 'Draft'"
-                    (click)="publishTour(tour.Id)"
-                    class="action-btn">
+                  <button mat-raised-button color="accent" (click)="showTourDetails(tour)" class="action-btn">
+                    <mat-icon>info</mat-icon>
+                    Detalji
+                  </button>
+                  <button mat-raised-button color="primary" *ngIf="tour.State === 'Draft'" (click)="publishTour(tour.Id)" class="action-btn">
                     <mat-icon>publish</mat-icon>
                     Objavi
                   </button>
-                  <button 
-                    mat-raised-button 
-                    color="warn" 
-                    *ngIf="tour.State === 'Published'"
-                    (click)="cancelTour(tour.Id)"
-                    class="action-btn">
+                  <button mat-raised-button color="warn" *ngIf="tour.State === 'Published'" (click)="cancelTour(tour.Id)" class="action-btn">
                     <mat-icon>cancel</mat-icon>
                     Otkaži
                   </button>
@@ -119,14 +117,150 @@
             </div>
 
             <div class="no-tours" *ngIf="!isLoading && tours.length === 0">
-              <mat-icon>add_location</mat-icon>
-              <h3>Nemate kreiranih tura</h3>
-              <p>Kreirajte svoju prvu turu da počnete sa radom</p>
-              <button mat-raised-button color="primary" (click)="showCreateForm = true" class="create-first-btn">
-                <mat-icon>add</mat-icon>
-                Kreiraj prvu turu
-              </button>
+              <mat-icon>map</mat-icon>
+              <h3>Nema tura</h3>
+              <p>Kreirajte svoju prvu turu da počnete</p>
             </div>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Tab za izveštaje -->
+      <mat-tab label="Izveštaji">
+        <ng-template mat-tab-label>
+          <span>Izveštaji</span>
+          <mat-icon>analytics</mat-icon>
+        </ng-template>
+        
+        <div class="tab-content">
+          <div class="section-header">
+            <h2>Izveštaji o prodaji</h2>
+            <p>Pregledajte performanse vaših tura</p>
+          </div>
+
+          <div class="report-controls">
+            <mat-form-field appearance="outline">
+              <mat-label>Godina</mat-label>
+              <mat-select [(ngModel)]="selectedYear" (selectionChange)="loadReport()">
+                <mat-option *ngFor="let year of availableYears" [value]="year">
+                  {{ year }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Mesec</mat-label>
+              <mat-select [(ngModel)]="selectedMonth" (selectionChange)="loadReport()">
+                <mat-option *ngFor="let month of months" [value]="month.value">
+                  {{ month.label }}
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <button mat-raised-button color="primary" (click)="loadReport()" [disabled]="isReportLoading" class="load-btn">
+              <mat-icon>{{ isReportLoading ? 'hourglass_empty' : 'refresh' }}</mat-icon>
+              {{ isReportLoading ? 'Učitavanje...' : 'Učitaj izveštaj' }}
+            </button>
+          </div>
+
+          <div class="report-content" *ngIf="!isReportLoading && report">
+            <!-- Sales Overview -->
+            <div class="report-section">
+              <h3>Pregled prodaje</h3>
+              <div class="sales-overview">
+                <mat-card class="stat-card">
+                  <div class="stat-content">
+                    <mat-icon class="stat-icon">shopping_cart</mat-icon>
+                    <div class="stat-info">
+                      <span class="stat-value">{{ getTotalSales() }}</span>
+                      <span class="stat-label">Ukupno prodaja</span>
+                    </div>
+                  </div>
+                </mat-card>
+                
+                <mat-card class="stat-card" *ngIf="report.bestRatedTour">
+                  <div class="stat-content">
+                    <mat-icon class="stat-icon">star</mat-icon>
+                    <div class="stat-info">
+                      <span class="stat-value">{{ report.bestRatedTour.averageRating | number:'1.1' }}</span>
+                      <span class="stat-label">Najbolja ocena</span>
+                    </div>
+                  </div>
+                </mat-card>
+              </div>
+            </div>
+
+            <!-- Tour Sales Details -->
+            <div class="report-section" *ngIf="report.tourSales && report.tourSales.length > 0">
+              <h3>Detalji prodaje po turama</h3>
+              <div class="sales-table">
+                <table mat-table [dataSource]="report.tourSales" class="mat-elevation-z8">
+                  <ng-container matColumnDef="name">
+                    <th mat-header-cell *matHeaderCellDef>Naziv ture</th>
+                    <td mat-cell *matCellDef="let tour">{{ tour.name }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="salesCount">
+                    <th mat-header-cell *matHeaderCellDef>Broj prodaja</th>
+                    <td mat-cell *matCellDef="let tour">
+                      <span class="sales-count">{{ tour.salesCount }}</span>
+                    </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="salesColumns"></tr>
+                  <tr mat-row *matRowDef="let row; columns: salesColumns;"></tr>
+                </table>
+              </div>
+            </div>
+
+            <!-- Best Rated Tour -->
+            <div class="report-section" *ngIf="report.bestRatedTour">
+              <h3>Najbolje ocenjena tura</h3>
+              <mat-card class="rating-card best-rating">
+                <div class="rating-content">
+                  <div class="rating-header">
+                    <h4>{{ report.bestRatedTour.name }}</h4>
+                    <div class="rating-stars">
+                      <mat-icon *ngFor="let star of getStars(report.bestRatedTour.averageRating)" class="star-icon">star</mat-icon>
+                    </div>
+                  </div>
+                  <div class="rating-details">
+                    <p><strong>Prosečna ocena:</strong> {{ report.bestRatedTour.averageRating | number:'1.1' }}/5</p>
+                    <p><strong>Broj ocena:</strong> {{ report.bestRatedTour.ratingsCount }}</p>
+                  </div>
+                </div>
+              </mat-card>
+            </div>
+
+            <!-- Worst Rated Tour -->
+            <div class="report-section" *ngIf="report.worstRatedTour">
+              <h3>Najgore ocenjena tura</h3>
+              <mat-card class="rating-card worst-rating">
+                <div class="rating-content">
+                  <div class="rating-header">
+                    <h4>{{ report.worstRatedTour.name }}</h4>
+                    <div class="rating-stars">
+                      <mat-icon *ngFor="let star of getStars(report.worstRatedTour.averageRating)" class="star-icon">star</mat-icon>
+                    </div>
+                  </div>
+                  <div class="rating-details">
+                    <p><strong>Prosečna ocena:</strong> {{ report.worstRatedTour.averageRating | number:'1.1' }}/5</p>
+                    <p><strong>Broj ocena:</strong> {{ report.worstRatedTour.ratingsCount }}</p>
+                  </div>
+                </div>
+              </mat-card>
+            </div>
+          </div>
+
+          <div class="loading-container" *ngIf="isReportLoading">
+            <mat-spinner></mat-spinner>
+            <p>Učitavanje izveštaja...</p>
+          </div>
+
+          <div class="no-data" *ngIf="!isReportLoading && !report">
+            <mat-icon>analytics</mat-icon>
+            <h3>Nema podataka</h3>
+            <p>Izaberite godinu i mesec da vidite izveštaj</p>
           </div>
         </div>
       </mat-tab>
@@ -248,6 +382,67 @@
           </form>
         </mat-card-content>
       </mat-card>
+    </div>
+  </div>
+
+  <!-- Modal za detalje ture -->
+  <div class="modal-overlay" *ngIf="showTourDetailsModal" (click)="closeTourDetailsModal()">
+    <div class="modal-content tour-details-modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ selectedTourForDetails?.Name }}</h2>
+        <button mat-icon-button (click)="closeTourDetailsModal()" class="close-btn">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="tour-info">
+          <p class="tour-description">{{ selectedTourForDetails?.Description }}</p>
+          
+          <div class="tour-details-grid">
+            <div class="detail-item">
+              <mat-icon>category</mat-icon>
+              <span><strong>Kategorija:</strong> {{ getCategoryLabel(selectedTourForDetails?.Category || '') }}</span>
+            </div>
+            <div class="detail-item">
+              <mat-icon>fitness_center</mat-icon>
+              <span><strong>Težina:</strong> {{ getDifficultyLabel(selectedTourForDetails?.Difficulty || '') }}</span>
+            </div>
+            <div class="detail-item">
+              <mat-icon>event</mat-icon>
+              <span><strong>Datum:</strong> {{ selectedTourForDetails?.Date | date:'dd.MM.yyyy' }}</span>
+            </div>
+            <div class="detail-item">
+              <mat-icon>attach_money</mat-icon>
+              <span><strong>Cena:</strong> {{ selectedTourForDetails?.Price | currency:'RSD' }}</span>
+            </div>
+            <div class="detail-item">
+              <mat-icon>info</mat-icon>
+              <span><strong>Status:</strong> {{ getStateLabel(selectedTourForDetails?.State || '') }}</span>
+            </div>
+          </div>
+
+          <div class="key-points" *ngIf="(selectedTourForDetails?.KeyPoints?.length ?? 0) > 0">
+            <h3>Ključne tačke:</h3>
+            <div class="points-list">
+              <div *ngFor="let point of selectedTourForDetails?.KeyPoints || []; let i = index" class="point-item">
+                <div class="point-number">{{ i + 1 }}</div>
+                <div class="point-content">
+                  <h4>{{ point.Name }}</h4>
+                  <p>{{ point.Description }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button mat-raised-button color="primary" (click)="closeTourDetailsModal()">
+          <mat-icon>check</mat-icon>
+          Zatvori
+        </button>
+      </div>
     </div>
   </div>
 </div> 
