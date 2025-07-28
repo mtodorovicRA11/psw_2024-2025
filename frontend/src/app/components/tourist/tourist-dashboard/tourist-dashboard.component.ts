@@ -90,6 +90,7 @@ export class TouristDashboardComponent implements OnInit {
     // Postavi loading stanje odmah
     this.isLoading = true;
     this.isCartLoading = true;
+    this.cdr.detectChanges();
     
     this.loadTours();
     this.loadCart();
@@ -101,12 +102,11 @@ export class TouristDashboardComponent implements OnInit {
         console.log('Loaded tours:', tours);
         console.log('First tour ID:', tours[0]?.Id);
         console.log('First tour ID type:', typeof tours[0]?.Id);
-        setTimeout(() => {
-          this.tours = tours;
-          // Automatically load tour routes for map
-          this.loadTourRoutes();
-          this.isLoading = false;
-        });
+        this.tours = tours;
+        // Automatically load tour routes for map
+        this.loadTourRoutes();
+        this.isLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error: any) => {
         console.error('Error loading tours:', error);
@@ -118,9 +118,8 @@ export class TouristDashboardComponent implements OnInit {
           return;
         }
         
-        setTimeout(() => {
-          this.isLoading = false;
-        });
+        this.isLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -131,26 +130,26 @@ export class TouristDashboardComponent implements OnInit {
         console.log('Cart data received:', cart);
         console.log('Cart items:', cart?.Items);
         console.log('Cart items length:', cart?.Items?.length);
-        setTimeout(() => {
-          // Mapiraj PascalCase svojstva iz backend-a na camelCase svojstva
-          const mappedItems = (cart?.Items || []).map((item: any) => ({
-            tourId: item.TourId,
-            name: item.Name,
-            price: item.Price,
-            guideName: item.GuideName,
-            date: item.Date,
-            category: item.Category
-          }));
-          
-          this.cart = {
-            items: mappedItems,
-            totalPrice: cart?.TotalPrice || 0,
-            maxUsableBonusPoints: cart?.MaxUsableBonusPoints || 0
-          };
-          console.log('Updated cart in component:', this.cart);
-          console.log('Updated cart items length:', this.cart.items.length);
-          this.isCartLoading = false;
-        });
+        
+        // Mapiraj PascalCase svojstva iz backend-a na camelCase svojstva
+        const mappedItems = (cart?.Items || []).map((item: any) => ({
+          tourId: item.TourId,
+          name: item.Name,
+          price: item.Price,
+          guideName: item.GuideName,
+          date: item.Date,
+          category: item.Category
+        }));
+        
+        this.cart = {
+          items: mappedItems,
+          totalPrice: cart?.TotalPrice || 0,
+          maxUsableBonusPoints: cart?.MaxUsableBonusPoints || 0
+        };
+        console.log('Updated cart in component:', this.cart);
+        console.log('Updated cart items length:', this.cart.items.length);
+        this.isCartLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error: any) => {
         console.error('Error loading cart:', error);
@@ -162,15 +161,14 @@ export class TouristDashboardComponent implements OnInit {
           return;
         }
         
-        setTimeout(() => {
-          // Postavi prazan cart ako dođe do greške
-          this.cart = {
-            items: [],
-            totalPrice: 0,
-            maxUsableBonusPoints: 0
-          };
-          this.isCartLoading = false;
-        });
+        // Postavi prazan cart ako dođe do greške
+        this.cart = {
+          items: [],
+          totalPrice: 0,
+          maxUsableBonusPoints: 0
+        };
+        this.isCartLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -192,10 +190,8 @@ export class TouristDashboardComponent implements OnInit {
     this.tourService.addToCart(tourId).subscribe({
       next: () => {
         console.log('Successfully added tour to cart, tourId:', tourId);
-        setTimeout(() => {
-          console.log('Calling loadCart after adding to cart');
-          this.loadCart();
-        }, 100); // Dodaj mali delay da se osigura da je backend ažurirao korpu
+        console.log('Calling loadCart after adding to cart');
+        this.loadCart();
       },
       error: (error: any) => {
         console.error('Error adding to cart:', error);
@@ -207,9 +203,8 @@ export class TouristDashboardComponent implements OnInit {
           return;
         }
         
-        setTimeout(() => {
-          this.isCartLoading = false;
-        });
+        this.isCartLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -223,10 +218,8 @@ export class TouristDashboardComponent implements OnInit {
     this.tourService.removeFromCart(tourId).subscribe({
       next: () => {
         console.log('Successfully removed tour from cart, tourId:', tourId);
-        setTimeout(() => {
-          console.log('Calling loadCart after removing from cart');
-          this.loadCart();
-        }, 100); // Dodaj mali delay da se osigura da je backend ažurirao korpu
+        console.log('Calling loadCart after removing from cart');
+        this.loadCart();
       },
       error: (error: any) => {
         console.error('Error removing from cart:', error);
@@ -238,9 +231,8 @@ export class TouristDashboardComponent implements OnInit {
           return;
         }
         
-        setTimeout(() => {
-          this.isCartLoading = false;
-        });
+        this.isCartLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -258,11 +250,9 @@ export class TouristDashboardComponent implements OnInit {
       
       this.tourService.purchaseTours(purchaseRequest).subscribe({
         next: () => {
-          setTimeout(() => {
-            this.loadCart();
-            // Reload tours to update availability
-            this.loadTours();
-          });
+          this.loadCart();
+          // Reload tours to update availability
+          this.loadTours();
         },
         error: (error: any) => {
           console.error('Error purchasing tours:', error);
@@ -274,9 +264,8 @@ export class TouristDashboardComponent implements OnInit {
             return;
           }
           
-          setTimeout(() => {
-            this.isCartLoading = false;
-          });
+          this.isCartLoading = false;
+          this.cdr.detectChanges();
         }
       });
     }

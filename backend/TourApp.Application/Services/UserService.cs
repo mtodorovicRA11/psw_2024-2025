@@ -119,7 +119,13 @@ public class UserService
 
     public async Task<List<User>> GetMaliciousUsersAsync()
     {
-        return await _dbContext.Users.Where(u => u.IsMalicious).ToListAsync();
+        var maliciousUsers = await _dbContext.Users.Where(u => u.IsMalicious).ToListAsync();
+        Console.WriteLine($"Found {maliciousUsers.Count} malicious users");
+        foreach (var user in maliciousUsers)
+        {
+            Console.WriteLine($"Malicious user: {user.Username} ({user.FirstName} {user.LastName}) - Role: {user.Role}");
+        }
+        return maliciousUsers;
     }
 
     public async Task BlockUserAsync(Guid userId, EmailService emailService)

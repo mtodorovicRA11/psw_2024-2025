@@ -18,12 +18,29 @@ public class UserRegistrationTests
         return new TourAppDbContext(options);
     }
 
+    private EmailService GetEmailService()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                {"Email:SmtpServer", "smtp.gmail.com"},
+                {"Email:SmtpPort", "587"},
+                {"Email:Username", "test@example.com"},
+                {"Email:Password", "testpassword"},
+                {"Email:FromEmail", "test@example.com"},
+                {"Email:FromName", "TourApp Test"}
+            })
+            .Build();
+        return new EmailService(configuration);
+    }
+
     [Fact]
     public async Task RegisterTourist_ShouldCreateUserWithHashedPassword_AndUniqueUsernameEmail()
     {
         // Arrange
         var dbContext = GetInMemoryDbContext();
         var service = new UserService(dbContext);
+        var emailService = GetEmailService();
         var request = new RegisterTouristRequest
         {
             Username = "testuser",
@@ -34,7 +51,7 @@ public class UserRegistrationTests
             Interests = new() { Interest.Nature, Interest.Art }
         };
         // Act
-        var user = await service.RegisterTouristAsync(request);
+        var user = await service.RegisterTouristAsync(request, emailService);
         // Assert
         Assert.NotNull(user);
         Assert.Equal(request.Username, user.Username);
@@ -45,7 +62,7 @@ public class UserRegistrationTests
         Assert.Contains(Interest.Art, user.Interests);
         // Provera unikatnosti
         await Assert.ThrowsAsync<Exception>(async () =>
-            await service.RegisterTouristAsync(request));
+            await service.RegisterTouristAsync(request, emailService));
     }
 
     [Fact]
@@ -54,6 +71,7 @@ public class UserRegistrationTests
         // Arrange
         var dbContext = GetInMemoryDbContext();
         var service = new UserService(dbContext);
+        var emailService = GetEmailService();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -72,7 +90,7 @@ public class UserRegistrationTests
             Email = "login@example.com",
             Interests = new() { Interest.Nature }
         };
-        await service.RegisterTouristAsync(registerRequest);
+        await service.RegisterTouristAsync(registerRequest, emailService);
         var loginRequest = new LoginRequest
         {
             Username = "loginuser",

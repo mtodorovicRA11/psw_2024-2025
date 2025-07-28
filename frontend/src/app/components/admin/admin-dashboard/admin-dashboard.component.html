@@ -72,7 +72,7 @@
                   mat-raised-button 
                   [color]="user.isBlocked ? 'primary' : 'warn'"
                   [disabled]="user.isBlocked"
-                  (click)="user.isBlocked ? unblockUser(user.Id) : blockUser(user.Id)"
+                  (click)="user.isBlocked ? unblockUser(user.id) : blockUser(user.id)"
                   matTooltip="{{ user.isBlocked ? 'Odblokiraj korisnika' : 'Blokiraj korisnika' }}">
                   <mat-icon>{{ user.isBlocked ? 'lock_open' : 'block' }}</mat-icon>
                   {{ user.isBlocked ? 'Odblokiraj' : 'Blokiraj' }}
@@ -144,8 +144,8 @@
                   <button 
                     mat-raised-button 
                     color="accent"
-                    *ngIf="problem.Status === 'Reported'"
-                    (click)="updateProblemStatus(problem.Id, 'InProgress')"
+                    *ngIf="problem.Status === 'Pending'"
+                    (click)="updateProblemStatus(problem.Id, 'UnderReview')"
                     matTooltip="Preuzmi u obradu">
                     <mat-icon>play_arrow</mat-icon>
                     U obradi
@@ -153,7 +153,7 @@
                   <button 
                     mat-raised-button 
                     color="primary"
-                    *ngIf="problem.Status === 'InProgress'"
+                    *ngIf="problem.Status === 'UnderReview'"
                     (click)="updateProblemStatus(problem.Id, 'Resolved')"
                     matTooltip="Označi kao rešeno">
                     <mat-icon>check</mat-icon>
@@ -162,11 +162,11 @@
                   <button 
                     mat-raised-button 
                     color="warn"
-                    *ngIf="problem.Status === 'Resolved'"
-                    (click)="updateProblemStatus(problem.Id, 'Closed')"
-                    matTooltip="Zatvori problem">
+                    *ngIf="problem.Status === 'Pending'"
+                    (click)="updateProblemStatus(problem.Id, 'Rejected')"
+                    matTooltip="Odbij problem">
                     <mat-icon>close</mat-icon>
-                    Zatvori
+                    Odbij
                   </button>
                 </div>
               </td>

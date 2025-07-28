@@ -15,6 +15,19 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { AuthService, User } from '../../../services/auth.service';
 import { AdminService } from '../../../services/admin.service';
 
+interface MaliciousUser {
+  id: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  interests: string[];
+  bonusPoints: number;
+  isMalicious: boolean;
+  isBlocked: boolean;
+}
+
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
@@ -37,7 +50,7 @@ import { AdminService } from '../../../services/admin.service';
   styleUrls: ['./admin-dashboard.component.scss']
 })
 export class AdminDashboardComponent implements OnInit {
-  maliciousUsers: User[] = [];
+  maliciousUsers: MaliciousUser[] = [];
   allProblems: any[] = [];
   isLoading = false;
   problemsLoading = false;
@@ -63,8 +76,27 @@ export class AdminDashboardComponent implements OnInit {
 
   loadMaliciousUsers() {
     this.adminService.getMaliciousUsers().subscribe({
-      next: (users: User[]) => {
-        this.maliciousUsers = users;
+      next: (users: any[]) => {
+        console.log('Raw malicious users from backend:', users);
+        // Mapiraj PascalCase svojstva iz backend-a na camelCase svojstva
+        this.maliciousUsers = users.map(user => {
+          console.log('Mapping user:', user);
+          const mappedUser = {
+            id: user.Id,
+            username: user.Username,
+            email: user.Email,
+            firstName: user.FirstName,
+            lastName: user.LastName,
+            role: user.Role,
+            interests: user.Interests || [],
+            bonusPoints: user.BonusPoints || 0,
+            isMalicious: user.IsMalicious || false,
+            isBlocked: user.IsBlocked || false
+          };
+          console.log('Mapped user:', mappedUser);
+          return mappedUser;
+        });
+        console.log('Mapped malicious users:', this.maliciousUsers);
         this.isLoading = false;
         this.cdr.detectChanges();
       },
@@ -79,7 +111,10 @@ export class AdminDashboardComponent implements OnInit {
   loadAllProblems() {
     this.adminService.getAllProblems().subscribe({
       next: (problems: any[]) => {
+        console.log('Raw problems from backend:', problems);
         this.allProblems = problems;
+        console.log('Problems loaded:', this.allProblems);
+        console.log('Problem statuses:', this.allProblems.map(p => ({ id: p.Id, status: p.Status })));
         this.problemsLoading = false;
         this.cdr.detectChanges();
       },
@@ -92,8 +127,15 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   blockUser(userId: string) {
+    console.log('Blocking user with ID:', userId);
+    if (!userId || userId === 'undefined') {
+      console.error('Invalid user ID:', userId);
+      return;
+    }
+    
     this.adminService.blockUser(userId).subscribe({
       next: () => {
+        console.log('User blocked successfully');
         this.loadMaliciousUsers();
       },
       error: (error: any) => {
@@ -103,8 +145,15 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   unblockUser(userId: string) {
+    console.log('Unblocking user with ID:', userId);
+    if (!userId || userId === 'undefined') {
+      console.error('Invalid user ID:', userId);
+      return;
+    }
+    
     this.adminService.unblockUser(userId).subscribe({
       next: () => {
+        console.log('User unblocked successfully');
         this.loadMaliciousUsers();
       },
       error: (error: any) => {
@@ -114,8 +163,15 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   updateProblemStatus(problemId: string, status: string) {
+    console.log('Updating problem status:', { problemId, status });
+    if (!problemId || problemId === 'undefined') {
+      console.error('Invalid problem ID:', problemId);
+      return;
+    }
+    
     this.adminService.updateProblemStatus(problemId, status).subscribe({
       next: () => {
+        console.log('Problem status updated successfully');
         this.loadAllProblems();
       },
       error: (error: any) => {
@@ -126,20 +182,20 @@ export class AdminDashboardComponent implements OnInit {
 
   getStatusLabel(status: string): string {
     switch (status) {
-      case 'Reported': return 'Prijavljeno';
-      case 'InProgress': return 'U toku';
+      case 'Pending': return 'Prijavljeno';
+      case 'UnderReview': return 'U toku';
       case 'Resolved': return 'Rešeno';
-      case 'Closed': return 'Zatvoreno';
+      case 'Rejected': return 'Odbijeno';
       default: return status;
     }
   }
 
   getStatusColor(status: string): string {
     switch (status) {
-      case 'Reported': return 'warn';
-      case 'InProgress': return 'accent';
+      case 'Pending': return 'warn';
+      case 'UnderReview': return 'accent';
       case 'Resolved': return 'primary';
-      case 'Closed': return '';
+      case 'Rejected': return '';
       default: return '';
     }
   }

@@ -4,6 +4,7 @@ using TourApp.Domain;
 using TourApp.Application.Services;
 using TourApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -25,14 +26,25 @@ public class AdminAndReportTests
     {
         var dbContext = GetInMemoryDbContext();
         var userService = new UserService(dbContext);
-        var emailService = new EmailService();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                {"Email:SmtpServer", "smtp.gmail.com"},
+                {"Email:SmtpPort", "587"},
+                {"Email:Username", "test@example.com"},
+                {"Email:Password", "testpassword"},
+                {"Email:FromEmail", "test@example.com"},
+                {"Email:FromName", "TourApp Test"}
+            })
+            .Build();
+        var emailService = new EmailService(configuration);
         var userId = Guid.NewGuid();
         dbContext.Users.Add(new User { Id = userId, Username = "admin", PasswordHash = "x", Role = UserRole.Tourist, Email = "a@a.com" });
         await dbContext.SaveChangesAsync();
         await userService.BlockUserAsync(userId, emailService);
         var user = await dbContext.Users.FindAsync(userId);
         Assert.True(user.IsBlocked);
-        await userService.UnblockUserAsync(userId);
+        await userService.UnblockUserAsync(userId, emailService);
         user = await dbContext.Users.FindAsync(userId);
         Assert.False(user.IsBlocked);
     }

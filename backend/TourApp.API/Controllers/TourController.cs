@@ -381,4 +381,68 @@ public class TourController : ControllerBase
             return BadRequest(new { error = ex.Message });
         }
     }
+
+    [HttpPost("create-test-problems")]
+    public async Task<IActionResult> CreateTestProblems()
+    {
+        try
+        {
+            // Get existing users and tours
+            var guide = await _dbContext.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Guide);
+            var tourist = await _dbContext.Users.FirstOrDefaultAsync(u => u.Role == UserRole.Tourist);
+            var tour = await _dbContext.Tours.FirstOrDefaultAsync();
+
+            if (guide == null || tourist == null || tour == null)
+            {
+                return BadRequest(new { error = "Please create test tours first" });
+            }
+
+            // Create test problems with different statuses
+            var problems = new List<TourProblem>
+            {
+                new TourProblem
+                {
+                    Id = Guid.NewGuid(),
+                    TourId = tour.Id,
+                    TouristId = tourist.Id,
+                    Title = "Problem sa transportom",
+                    Description = "Autobus je kasnio 30 minuta",
+                    Status = ProblemStatus.Pending,
+                    CreatedAt = DateTime.UtcNow.AddDays(-2),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-2)
+                },
+                new TourProblem
+                {
+                    Id = Guid.NewGuid(),
+                    TourId = tour.Id,
+                    TouristId = tourist.Id,
+                    Title = "Problem sa vodičem",
+                    Description = "Vodič nije bio profesionalan",
+                    Status = ProblemStatus.UnderReview,
+                    CreatedAt = DateTime.UtcNow.AddDays(-1),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-1)
+                },
+                new TourProblem
+                {
+                    Id = Guid.NewGuid(),
+                    TourId = tour.Id,
+                    TouristId = tourist.Id,
+                    Title = "Problem sa smeštajem",
+                    Description = "Soba nije bila čista",
+                    Status = ProblemStatus.Resolved,
+                    CreatedAt = DateTime.UtcNow.AddDays(-3),
+                    UpdatedAt = DateTime.UtcNow.AddDays(-1)
+                }
+            };
+
+            _dbContext.TourProblems.AddRange(problems);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new { message = "Test problems created successfully" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 } 

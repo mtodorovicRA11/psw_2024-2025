@@ -41,8 +41,8 @@ export class AdminService {
 
   updateProblemStatus(problemId: string, status: string): Observable<Problem> {
     return this.http.post<Problem>(`${environment.apiUrl}/api/Tour/update-problem-status`, {
-      problemId,
-      status
+      ProblemId: problemId,
+      NewStatus: status
     });
   }
 } 

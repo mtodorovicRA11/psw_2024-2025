@@ -14,6 +14,8 @@ export interface User {
   Role: string;
   Interests: string[];
   BonusPoints: number;
+  IsMalicious: boolean;
+  IsBlocked: boolean;
 }
 
 export interface RegisterRequest {

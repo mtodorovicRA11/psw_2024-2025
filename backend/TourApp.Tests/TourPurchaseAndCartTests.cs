@@ -4,6 +4,7 @@ using TourApp.Domain;
 using TourApp.Application.Services;
 using TourApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
@@ -42,7 +43,20 @@ public class TourPurchaseAndCartTests
         await service.PublishTourAsync(tour.Id, guideId);
         dbContext.Users.Add(new User { Id = touristId, Username = "t", PasswordHash = "x", Role = UserRole.Tourist, Email = "t@t.com", BonusPoints = 50 });
         await dbContext.SaveChangesAsync();
-        var purchase = await service.PurchaseTourAsync(new PurchaseTourRequest { TourId = tour.Id, UseBonusPoints = 30 }, touristId);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                {"Email:SmtpServer", "smtp.gmail.com"},
+                {"Email:SmtpPort", "587"},
+                {"Email:Username", "test@example.com"},
+                {"Email:Password", "testpassword"},
+                {"Email:FromEmail", "test@example.com"},
+                {"Email:FromName", "TourApp Test"}
+            })
+            .Build();
+        var emailService = new EmailService(configuration);
+        
+        var purchase = await service.PurchaseTourAsync(new PurchaseTourRequest { TourId = tour.Id, UseBonusPoints = 30 }, touristId, emailService);
         Assert.NotNull(purchase);
         Assert.Equal(70, purchase.FinalPrice); // 100 - 30
         var tourist = await dbContext.Users.FindAsync(touristId);
