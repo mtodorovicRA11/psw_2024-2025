@@ -5,6 +5,7 @@ using TourApp.Domain;
 using TourApp.Infrastructure;
 using System.Security.Claims;
 using TourApp.Application.DTOs;
+using Microsoft.EntityFrameworkCore;
 
 namespace TourApp.API.Controllers;
 
@@ -13,9 +14,12 @@ namespace TourApp.API.Controllers;
 public class TourController : ControllerBase
 {
     private readonly TourService _tourService;
+    private readonly TourAppDbContext _dbContext;
+    
     public TourController(TourAppDbContext dbContext)
     {
         _tourService = new TourService(dbContext);
+        _dbContext = dbContext;
     }
 
     [HttpPost]
@@ -74,14 +78,14 @@ public class TourController : ControllerBase
 
     [HttpPost("cancel/{tourId}")]
     [Authorize(Roles = "Guide")]
-    public async Task<IActionResult> CancelTour([FromRoute] Guid tourId)
+    public async Task<IActionResult> CancelTour([FromRoute] Guid tourId, [FromServices] EmailService emailService)
     {
         var guideId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (guideId == null)
             return Forbid();
         try
         {
-            var tour = await _tourService.CancelTourAsync(tourId, Guid.Parse(guideId));
+            var tour = await _tourService.CancelTourAsync(tourId, Guid.Parse(guideId), emailService);
             return Ok(tour);
         }
         catch (Exception ex)
@@ -92,15 +96,39 @@ public class TourController : ControllerBase
 
     [HttpPost("purchase")]
     [Authorize(Roles = "Tourist")]
-    public async Task<IActionResult> PurchaseTour([FromBody] PurchaseTourRequest request)
+    public async Task<IActionResult> PurchaseTour([FromBody] PurchaseTourRequest request, [FromServices] EmailService emailService)
     {
         var touristId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (touristId == null)
             return Forbid();
         try
         {
-            var purchase = await _tourService.PurchaseTourAsync(request, Guid.Parse(touristId));
+            var purchase = await _tourService.PurchaseTourAsync(request, Guid.Parse(touristId), emailService);
             return Ok(purchase);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("purchase-multiple")]
+    [Authorize(Roles = "Tourist")]
+    public async Task<IActionResult> PurchaseMultipleTours([FromBody] PurchaseMultipleToursRequest request, [FromServices] EmailService emailService)
+    {
+        var touristId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (touristId == null)
+            return Forbid();
+        try
+        {
+            var purchases = new List<Purchase>();
+            foreach (var tourId in request.TourIds)
+            {
+                var purchaseRequest = new PurchaseTourRequest { TourId = tourId, UseBonusPoints = 0 };
+                var purchase = await _tourService.PurchaseTourAsync(purchaseRequest, Guid.Parse(touristId), emailService);
+                purchases.Add(purchase);
+            }
+            return Ok(purchases);
         }
         catch (Exception ex)
         {
@@ -180,14 +208,14 @@ public class TourController : ControllerBase
 
     [HttpPost("report-problem")]
     [Authorize(Roles = "Tourist")]
-    public async Task<IActionResult> ReportProblem([FromBody] ReportProblemRequest request)
+    public async Task<IActionResult> ReportProblem([FromBody] ReportProblemRequest request, [FromServices] EmailService emailService)
     {
         var touristId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (touristId == null)
             return Forbid();
         try
         {
-            var problem = await _tourService.ReportProblemAsync(request, Guid.Parse(touristId));
+            var problem = await _tourService.ReportProblemAsync(request, Guid.Parse(touristId), emailService);
             return Ok(problem);
         }
         catch (Exception ex)
@@ -255,5 +283,90 @@ public class TourController : ControllerBase
     {
         var problems = await _tourService.GetAllProblemsAsync();
         return Ok(problems);
+    }
+
+    [HttpPost("create-test-tours")]
+    public async Task<IActionResult> CreateTestTours()
+    {
+        try
+        {
+            var guideId = Guid.NewGuid();
+            
+            // Create test guide
+            var guide = new User
+            {
+                Id = guideId,
+                Username = "testguide",
+                PasswordHash = "test",
+                FirstName = "Test",
+                LastName = "Guide",
+                Email = "guide@test.com",
+                Role = UserRole.Guide,
+                BonusPoints = 0,
+                IsMalicious = false,
+                IsBlocked = false,
+                AwardPoints = 0,
+                IsAwardedGuide = false
+            };
+            
+            // Create test tour
+            var tour = new Tour
+            {
+                Id = Guid.NewGuid(),
+                Name = "Beogradska tura",
+                Description = "Obilazak najlepših delova Beograda",
+                Difficulty = "Medium",
+                Category = TourCategory.Nature,
+                Price = 1500,
+                Date = DateTime.UtcNow.AddDays(7),
+                State = TourState.Published,
+                GuideId = guideId,
+                KeyPoints = new List<KeyPoint>()
+            };
+
+            // Create key points
+            var keyPoints = new List<KeyPoint>
+            {
+                new KeyPoint
+                {
+                    Id = Guid.NewGuid(),
+                    TourId = tour.Id,
+                    Name = "Kalemegdan",
+                    Description = "Istorijski centar Beograda sa prelepim pogledom na ušće Save i Dunava",
+                    Latitude = 44.8235,
+                    Longitude = 20.4499
+                },
+                new KeyPoint
+                {
+                    Id = Guid.NewGuid(),
+                    TourId = tour.Id,
+                    Name = "Skadarlija",
+                    Description = "Boemska četvrt sa tradicionalnim restoranima",
+                    Latitude = 44.8178,
+                    Longitude = 20.4689
+                },
+                new KeyPoint
+                {
+                    Id = Guid.NewGuid(),
+                    TourId = tour.Id,
+                    Name = "Hram Svetog Save",
+                    Description = "Najveći pravoslavni hram na Balkanu",
+                    Latitude = 44.7980,
+                    Longitude = 20.4689
+                }
+            };
+
+            // Save to database
+            _dbContext.Users.Add(guide);
+            _dbContext.Tours.Add(tour);
+            _dbContext.KeyPoints.AddRange(keyPoints);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(new { message = "Test tours created successfully", tour });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 } 

@@ -19,7 +19,7 @@ public class UserService
         _dbContext = dbContext;
     }
 
-    public async Task<User> RegisterTouristAsync(RegisterTouristRequest request)
+    public async Task<User> RegisterTouristAsync(RegisterTouristRequest request, EmailService emailService)
     {
         if (await _dbContext.Users.AnyAsync(u => u.Username == request.Username))
             throw new Exception("Username already exists");
@@ -42,6 +42,10 @@ public class UserService
         };
         _dbContext.Users.Add(user);
         await _dbContext.SaveChangesAsync();
+
+        // Send welcome email
+        await emailService.SendWelcomeEmailAsync(user.Email, user.Username, user.FirstName);
+
         return user;
     }
 
@@ -124,15 +128,16 @@ public class UserService
             throw new Exception("User not found");
         user.IsBlocked = true;
         await _dbContext.SaveChangesAsync();
-        await emailService.SendEmailAsync(user.Email, "Obaveštenje o blokadi naloga", "Vaš nalog je blokiran od strane administratora.");
+        await emailService.SendBlockNotificationAsync(user.Email, user.Username);
     }
 
-    public async Task UnblockUserAsync(Guid userId)
+    public async Task UnblockUserAsync(Guid userId, EmailService emailService)
     {
         var user = await _dbContext.Users.FindAsync(userId);
         if (user == null)
             throw new Exception("User not found");
         user.IsBlocked = false;
         await _dbContext.SaveChangesAsync();
+        await emailService.SendUnblockNotificationAsync(user.Email, user.Username);
     }
 } 

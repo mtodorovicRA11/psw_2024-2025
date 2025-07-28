@@ -18,11 +18,11 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterTouristRequest request)
+    public async Task<IActionResult> Register([FromBody] RegisterTouristRequest request, [FromServices] EmailService emailService)
     {
         try
         {
-            var user = await _userService.RegisterTouristAsync(request);
+            var user = await _userService.RegisterTouristAsync(request, emailService);
             return Ok(new { user.Id, user.Username, user.Email, user.FirstName, user.LastName, user.Interests });
         }
         catch (Exception ex)
@@ -70,12 +70,26 @@ public class UsersController : ControllerBase
 
     [HttpPost("unblock/{userId}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> UnblockUser([FromRoute] Guid userId)
+    public async Task<IActionResult> UnblockUser([FromRoute] Guid userId, [FromServices] EmailService emailService)
     {
         try
         {
-            await _userService.UnblockUserAsync(userId);
+            await _userService.UnblockUserAsync(userId, emailService);
             return Ok();
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("test-email")]
+    public async Task<IActionResult> TestEmail([FromBody] TestEmailRequest request, [FromServices] EmailService emailService)
+    {
+        try
+        {
+            await emailService.SendTestEmailAsync(request.Email);
+            return Ok(new { message = "Test email sent successfully" });
         }
         catch (Exception ex)
         {

@@ -77,7 +77,7 @@ public class TourService
         return tour;
     }
 
-    public async Task<Tour> CancelTourAsync(Guid tourId, Guid guideId)
+    public async Task<Tour> CancelTourAsync(Guid tourId, Guid guideId, EmailService emailService)
     {
         var tour = await _dbContext.Tours.FirstOrDefaultAsync(t => t.Id == tourId);
         if (tour == null)
@@ -89,13 +89,17 @@ public class TourService
         if ((tour.Date - DateTime.UtcNow).TotalHours < 24)
             throw new Exception("Tour can only be cancelled at least 24 hours before it starts");
 
-        // Dodela bonus poena turistima koji su kupili turu
+        // Dodela bonus poena turistima koji su kupili turu i slanje notifikacija
         var purchases = _dbContext.Purchases.Where(p => p.TourId == tourId).ToList();
         foreach (var purchase in purchases)
         {
             var user = await _dbContext.Users.FindAsync(purchase.TouristId);
             if (user != null)
+            {
                 user.BonusPoints += (int)tour.Price;
+                // Send cancellation notification email
+                await emailService.SendTourCancellationNotificationAsync(user.Email, user.Username, tour.Name);
+            }
         }
 
         tour.State = TourState.Cancelled;
@@ -126,7 +130,7 @@ public class TourService
         return await query.ToListAsync();
     }
 
-    public async Task<Purchase> PurchaseTourAsync(PurchaseTourRequest request, Guid touristId)
+    public async Task<Purchase> PurchaseTourAsync(PurchaseTourRequest request, Guid touristId, EmailService emailService)
     {
         var tour = await _dbContext.Tours.FirstOrDefaultAsync(t => t.Id == request.TourId && t.State == TourState.Published);
         if (tour == null)
@@ -156,6 +160,10 @@ public class TourService
         };
         _dbContext.Purchases.Add(purchase);
         await _dbContext.SaveChangesAsync();
+
+        // Send purchase confirmation email
+        await emailService.SendTourPurchaseConfirmationAsync(user.Email, user.Username, tour.Name, finalPrice);
+
         return purchase;
     }
 
@@ -193,11 +201,15 @@ public class TourService
         return rating;
     }
 
-    public async Task<TourProblem> ReportProblemAsync(ReportProblemRequest request, Guid touristId)
+    public async Task<TourProblem> ReportProblemAsync(ReportProblemRequest request, Guid touristId, EmailService emailService)
     {
         var purchase = await _dbContext.Purchases.FirstOrDefaultAsync(p => p.TourId == request.TourId && p.TouristId == touristId);
         if (purchase == null)
             throw new Exception("You can only report problems for tours you have purchased");
+        
+        var tour = await _dbContext.Tours.FindAsync(request.TourId);
+        var user = await _dbContext.Users.FindAsync(touristId);
+        
         var problem = new TourProblem
         {
             Id = Guid.NewGuid(),
@@ -220,6 +232,13 @@ public class TourService
         });
         _dbContext.TourProblems.Add(problem);
         await _dbContext.SaveChangesAsync();
+
+        // Send problem report notification email
+        if (tour != null && user != null)
+        {
+            await emailService.SendProblemReportNotificationAsync(user.Email, user.Username, tour.Name);
+        }
+
         return problem;
     }
 
@@ -256,18 +275,20 @@ public class TourService
     // Korpom upravljamo u memoriji po korisniku (za demo svrhe, u realnom sistemu bi se koristila baza ili redis)
     private static readonly Dictionary<Guid, List<Guid>> _userCarts = new();
 
-    public async Task AddToCartAsync(Guid touristId, Guid tourId)
+    public Task AddToCartAsync(Guid touristId, Guid tourId)
     {
         if (!_userCarts.ContainsKey(touristId))
             _userCarts[touristId] = new List<Guid>();
         if (!_userCarts[touristId].Contains(tourId))
             _userCarts[touristId].Add(tourId);
+        return Task.CompletedTask;
     }
 
-    public async Task RemoveFromCartAsync(Guid touristId, Guid tourId)
+    public Task RemoveFromCartAsync(Guid touristId, Guid tourId)
     {
         if (_userCarts.ContainsKey(touristId))
             _userCarts[touristId].Remove(tourId);
+        return Task.CompletedTask;
     }
 
     public async Task<CartDto> GetCartAsync(Guid touristId)
