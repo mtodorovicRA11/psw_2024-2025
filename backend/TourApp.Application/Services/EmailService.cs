@@ -89,10 +89,10 @@ public class EmailService
         await SendEmailAsync(to, subject, body);
     }
 
-    public async Task SendProblemReportNotificationAsync(string to, string username, string tourName)
+    public async Task SendProblemReportNotificationAsync(string to, string username, string tourName, string touristName)
     {
         var subject = "Prijavljen problem sa turom - TourApp";
-        var body = GenerateProblemReportBody(username, tourName);
+        var body = GenerateProblemReportBody(username, tourName, touristName);
         await SendEmailAsync(to, subject, body);
     }
 
@@ -193,7 +193,7 @@ public class EmailService
             </html>";
     }
 
-    private string GenerateProblemReportBody(string username, string tourName)
+    private string GenerateProblemReportBody(string username, string tourName, string touristName)
     {
         return $@"
             <html>
@@ -201,9 +201,14 @@ public class EmailService
                 <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
                     <h2 style='color: #f44336;'>Prijavljen problem sa turom</h2>
                     <p>Poštovani {username},</p>
-                    <p>Primili smo prijavu problema sa turom <strong>{tourName}</strong>.</p>
-                    <p>Naš tim će istražiti situaciju i kontaktirati vas u najkraćem mogućem roku.</p>
-                    <p>Hvala vam na strpljenju.</p>
+                    <p>Turista <strong>{touristName}</strong> je prijavio problem sa vašom turom <strong>{tourName}</strong>.</p>
+                    <p>Molimo vas da:</p>
+                    <ul>
+                        <li>Pregledate prijavu u vašem dashboard-u</li>
+                        <li>Istražite problem i rešite ga ako je moguće</li>
+                        <li>Označite problem kao rešen ili pošaljite na reviziju ako smatrate da je nevalidan</li>
+                    </ul>
+                    <p>Hvala vam na brzom reagovanju.</p>
                     <p>TourApp tim</p>
                 </div>
             </body>

@@ -31,6 +31,7 @@ export class ReportProblemComponent {
   @Output() problemReported = new EventEmitter<void>();
 
   problem = {
+    title: '',
     description: ''
   };
 
@@ -40,12 +41,13 @@ export class ReportProblemComponent {
   constructor(private tourService: TourService) {}
 
   submitProblem() {
-    if (this.problem.description.trim()) {
+    if (this.problem.title.trim() && this.problem.description.trim()) {
       this.isLoading = true;
       this.errorMessage = '';
 
       const problemRequest = {
         tourId: this.tourId,
+        title: this.problem.title,
         description: this.problem.description
       };
 

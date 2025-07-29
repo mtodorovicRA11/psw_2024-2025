@@ -147,4 +147,17 @@ public class UserService
         await _dbContext.SaveChangesAsync();
         await emailService.SendUnblockNotificationAsync(user.Email, user.Username);
     }
+
+    public async Task UpdateInterestsAsync(Guid userId, List<string> interests)
+    {
+        var user = await _dbContext.Users.FindAsync(userId);
+        if (user == null)
+            throw new Exception("User not found");
+        
+        // Konvertuj string interesovanja u Interest enum
+        var interestEnums = interests.Select(i => (Interest)Enum.Parse(typeof(Interest), i)).ToList();
+        user.Interests = interestEnums;
+        
+        await _dbContext.SaveChangesAsync();
+    }
 } 

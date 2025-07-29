@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Moq;
 
 namespace TourApp.Tests;
 
@@ -87,7 +88,9 @@ public class AdminAndReportTests
     public async Task AwardBestGuide_ShouldGiveAwardPointsAndSetAwardedStatus()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var guideId = Guid.NewGuid();
         dbContext.Users.Add(new User { Id = guideId, Username = "g", PasswordHash = "x", Role = UserRole.Guide, Email = "g@g.com", AwardPoints = 4 });
         for (int i = 0; i < 5; i++)
@@ -107,7 +110,9 @@ public class AdminAndReportTests
     public async Task GetGuideMonthlyReport_ShouldReturnSalesAndRatings()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var guideId = Guid.NewGuid();
         var tourId = Guid.NewGuid();
         dbContext.Tours.Add(new Tour { Id = tourId, GuideId = guideId, Name = "T", Description = "D", Difficulty = "E", Category = TourCategory.Nature, Price = 10, Date = new DateTime(2024, 6, 1), State = TourState.Published });

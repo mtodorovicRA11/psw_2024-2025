@@ -99,13 +99,15 @@
                     <mat-icon>info</mat-icon>
                     Detalji
                   </button>
-                  <button mat-raised-button color="primary" *ngIf="tour.State === 'Draft'" (click)="publishTour(tour.Id)" class="action-btn">
-                    <mat-icon>publish</mat-icon>
-                    Objavi
+                  <button mat-raised-button color="primary" *ngIf="tour.State === 'Draft'" (click)="publishTour(tour.Id)" class="action-btn" [disabled]="tour.isPublishing">
+                    <mat-spinner *ngIf="tour.isPublishing" diameter="20"></mat-spinner>
+                    <mat-icon *ngIf="!tour.isPublishing">publish</mat-icon>
+                    {{ tour.isPublishing ? 'Objavljivanje...' : 'Objavi' }}
                   </button>
-                  <button mat-raised-button color="warn" *ngIf="tour.State === 'Published'" (click)="cancelTour(tour.Id)" class="action-btn">
-                    <mat-icon>cancel</mat-icon>
-                    Otkaži
+                  <button mat-raised-button color="warn" *ngIf="tour.State === 'Published'" (click)="cancelTour(tour.Id)" class="action-btn" [disabled]="tour.isCancelling">
+                    <mat-spinner *ngIf="tour.isCancelling" diameter="20"></mat-spinner>
+                    <mat-icon *ngIf="!tour.isCancelling">cancel</mat-icon>
+                    {{ tour.isCancelling ? 'Otkazivanje...' : 'Otkaži' }}
                   </button>
                 </div>
               </mat-card>
@@ -261,6 +263,94 @@
             <mat-icon>analytics</mat-icon>
             <h3>Nema podataka</h3>
             <p>Izaberite godinu i mesec da vidite izveštaj</p>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Tab za probleme -->
+      <mat-tab label="Problemi na turama">
+        <div class="tab-content">
+          <div class="section-header">
+            <h2>Problemi na mojim turama</h2>
+            <p>Pregled problema prijavljenih na vašim turama</p>
+          </div>
+
+          <div class="table-container" *ngIf="!problemsLoading">
+            <table mat-table [dataSource]="myProblems" class="mat-elevation-z8">
+              <!-- Tour Name Column -->
+              <ng-container matColumnDef="tourName">
+                <th mat-header-cell *matHeaderCellDef>Naziv ture</th>
+                <td mat-cell *matCellDef="let problem">{{ problem.TourName }}</td>
+              </ng-container>
+
+              <!-- Tourist Name Column -->
+              <ng-container matColumnDef="touristName">
+                <th mat-header-cell *matHeaderCellDef>Turista</th>
+                <td mat-cell *matCellDef="let problem">{{ problem.TouristName }}</td>
+              </ng-container>
+
+              <!-- Title Column -->
+              <ng-container matColumnDef="title">
+                <th mat-header-cell *matHeaderCellDef>Naslov problema</th>
+                <td mat-cell *matCellDef="let problem">{{ problem.Title }}</td>
+              </ng-container>
+
+              <!-- Description Column -->
+              <ng-container matColumnDef="description">
+                <th mat-header-cell *matHeaderCellDef>Opis problema</th>
+                <td mat-cell *matCellDef="let problem">{{ problem.Description }}</td>
+              </ng-container>
+
+              <!-- Status Column -->
+              <ng-container matColumnDef="status">
+                <th mat-header-cell *matHeaderCellDef>Status</th>
+                <td mat-cell *matCellDef="let problem">
+                  <mat-chip [color]="getProblemStatusColor(problem.Status)" selected>
+                    {{ getProblemStatusLabel(problem.Status) }}
+                  </mat-chip>
+                </td>
+              </ng-container>
+
+              <!-- Actions Column -->
+              <ng-container matColumnDef="actions">
+                <th mat-header-cell *matHeaderCellDef>Akcije</th>
+                <td mat-cell *matCellDef="let problem">
+                  <div class="action-buttons">
+                    <button 
+                      mat-raised-button 
+                      [color]="getStatusButtonColor(option)"
+                      *ngFor="let option of getAvailableStatusOptions(problem.Status)"
+                      (click)="updateProblemStatus(problem.Id, option)"
+                      [matTooltip]="getStatusTransitionLabel(problem.Status, option)">
+                      <mat-icon>{{ getStatusIcon(option) }}</mat-icon>
+                      {{ getStatusTransitionLabel(problem.Status, option) }}
+                    </button>
+                    <button 
+                      mat-raised-button 
+                      color="accent"
+                      (click)="showProblemEvents(problem)"
+                      matTooltip="Prikaži istoriju promena">
+                      <mat-icon>history</mat-icon>
+                      Istorija
+                    </button>
+                  </div>
+                </td>
+              </ng-container>
+
+              <tr mat-header-row *matHeaderRowDef="problemColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: problemColumns;"></tr>
+            </table>
+          </div>
+
+          <div class="loading-container" *ngIf="problemsLoading">
+            <mat-spinner></mat-spinner>
+            <p>Učitavanje problema...</p>
+          </div>
+
+          <div class="no-data" *ngIf="!problemsLoading && myProblems.length === 0">
+            <mat-icon>report_problem</mat-icon>
+            <h3>Nema prijavljenih problema</h3>
+            <p>Nema problema prijavljenih na vašim turama</p>
           </div>
         </div>
       </mat-tab>
@@ -443,6 +533,95 @@
           Zatvori
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal za prikaz event-a problema -->
+  <div class="modal-overlay" *ngIf="showEventsModal" (click)="closeEventsModal()">
+    <div class="modal-content events-modal" (click)="$event.stopPropagation()">
+      <mat-card>
+        <mat-card-header>
+          <mat-card-title>Istorija promena problema</mat-card-title>
+          <mat-card-subtitle *ngIf="selectedProblemForEvents">
+            {{ selectedProblemForEvents.Title }} - {{ selectedProblemForEvents.TourName }}
+            <span class="current-status" [ngClass]="getStatusClass(selectedProblemForEvents.Status)">
+              <mat-icon>flag</mat-icon>
+              Trenutni status: {{ getProblemStatusLabel(selectedProblemForEvents.Status) }}
+            </span>
+          </mat-card-subtitle>
+        </mat-card-header>
+        
+        <mat-card-content>
+          <div class="loading-container" *ngIf="eventsLoading">
+            <mat-spinner></mat-spinner>
+            <p>Učitavanje istorije...</p>
+          </div>
+
+          <div class="events-timeline" *ngIf="!eventsLoading">
+            <div class="event-item" *ngFor="let event of problemEvents">
+              <div class="event-header">
+                <mat-icon class="event-icon">event</mat-icon>
+                <div class="event-info">
+                  <div class="event-main-info">
+                    <span class="event-type">{{ getEventTypeLabel(event.EventType) }}</span>
+                    <span class="event-status" [ngClass]="getStatusClass(event.NewStatus)">
+                      <mat-icon class="status-icon">flag</mat-icon>
+                      {{ getProblemStatusLabel(event.NewStatus) }}
+                    </span>
+                  </div>
+                  <span class="event-date">{{ formatEventDate(event.OccurredAt) }}</span>
+                </div>
+              </div>
+              
+              <div class="event-details" *ngIf="event.EventType === 'ProblemStatusChangedEvent'">
+                <div class="status-change">
+                  <div class="status-label">
+                    <mat-icon>sync</mat-icon>
+                    <span><strong>Promena statusa:</strong></span>
+                  </div>
+                  <div class="status-transition">
+                    <span class="old-status">{{ getProblemStatusLabel(event.OldStatus) }}</span>
+                    <mat-icon>arrow_forward</mat-icon>
+                    <span class="new-status">{{ getProblemStatusLabel(event.NewStatus) }}</span>
+                  </div>
+                </div>
+                <div class="event-user">
+                  <mat-icon>person</mat-icon>
+                  <span><strong>Korisnik:</strong> {{ getEventUserRoleLabel(event.UserRole) }}</span>
+                </div>
+                <div class="event-comment" *ngIf="event.Comment">
+                  <mat-icon>comment</mat-icon>
+                  <span><strong>Komentar:</strong> {{ event.Comment }}</span>
+                </div>
+              </div>
+
+              <div class="event-details" *ngIf="event.EventType === 'ProblemCreatedEvent'">
+                <div class="problem-created">
+                  <p><strong>Naslov:</strong> {{ event.Title }}</p>
+                  <p><strong>Opis:</strong> {{ event.Description }}</p>
+                </div>
+                <div class="status-info">
+                  <mat-icon>flag</mat-icon>
+                  <span><strong>Početni status:</strong> {{ getProblemStatusLabel(event.NewStatus) }}</span>
+                </div>
+                <div class="event-user">
+                  <mat-icon>person</mat-icon>
+                  <span>{{ getEventUserRoleLabel(event.UserRole) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="no-events" *ngIf="problemEvents.length === 0">
+              <mat-icon>info</mat-icon>
+              <p>Nema zabeleženih promena</p>
+            </div>
+          </div>
+        </mat-card-content>
+
+        <mat-card-actions>
+          <button mat-raised-button (click)="closeEventsModal()">Zatvori</button>
+        </mat-card-actions>
+      </mat-card>
     </div>
   </div>
 </div> 

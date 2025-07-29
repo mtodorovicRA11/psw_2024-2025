@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -40,7 +40,10 @@ export class RateTourComponent {
   isLoading = false;
   errorMessage = '';
 
-  constructor(private tourService: TourService) {}
+  constructor(
+    private tourService: TourService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   submitRating() {
     if (this.rating.rating && this.rating.comment.trim()) {
@@ -60,8 +63,15 @@ export class RateTourComponent {
         },
         error: (error: any) => {
           this.isLoading = false;
-          this.errorMessage = error.error?.error || 'Greška pri ocenjivanju';
           console.error('Error rating tour:', error);
+          console.log('Error response:', error.error);
+          
+          // Use setTimeout to avoid ExpressionChangedAfterItHasBeenCheckedError
+          setTimeout(() => {
+            this.errorMessage = error.error?.error || 'Greška pri ocenjivanju';
+            console.log('Setting error message:', this.errorMessage);
+            this.cdr.detectChanges();
+          }, 0);
         }
       });
     }

@@ -14,6 +14,8 @@ export interface Tour {
   State: string;
   GuideId: string;
   KeyPoints: KeyPoint[];
+  isPublishing?: boolean;
+  isCancelling?: boolean;
 }
 
 export interface KeyPoint {
@@ -76,6 +78,13 @@ export class TourService {
     return this.http.post(`${environment.apiUrl}/api/Tour/purchase-multiple`, request);
   }
 
+  purchaseSingleTour(tourId: string, useBonusPoints: number): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/api/Tour/purchase`, {
+      tourId: tourId,
+      useBonusPoints: useBonusPoints
+    });
+  }
+
   getGuideReport(year: number, month: number): Observable<any> {
     return this.http.get(`${environment.apiUrl}/api/Tour/guide-report?year=${year}&month=${month}`);
   }
@@ -108,5 +117,32 @@ export class TourService {
 
   reportProblem(problemRequest: any): Observable<any> {
     return this.http.post(`${environment.apiUrl}/api/Tour/report-problem`, problemRequest);
+  }
+
+  getMyProblems(): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiUrl}/api/Tour/problems/tourist`);
+  }
+
+  getGuideProblems(): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiUrl}/api/Tour/problems/guide`);
+  }
+
+  updateProblemStatus(problemId: string, newStatus: string): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/api/Tour/update-problem-status`, {
+      problemId: problemId,
+      newStatus: newStatus
+    });
+  }
+
+  getPurchasedTours(): Observable<Tour[]> {
+    return this.http.get<Tour[]>(`${environment.apiUrl}/api/Tour/purchased`);
+  }
+
+  getProblemEvents(problemId: string): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiUrl}/api/Tour/problems/${problemId}/events`);
+  }
+
+  getAllProblemEvents(): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiUrl}/api/Tour/problems/events`);
   }
 } 

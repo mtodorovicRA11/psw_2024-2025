@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Moq;
 
 namespace TourApp.Tests;
 
@@ -25,7 +26,9 @@ public class TourPurchaseAndCartTests
     public async Task PurchaseTour_ShouldDeductBonusPoints_AndCreatePurchase()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var touristId = Guid.NewGuid();
         var guideId = Guid.NewGuid();
         var tour = await service.CreateTourAsync(new CreateTourRequest
@@ -67,7 +70,9 @@ public class TourPurchaseAndCartTests
     public async Task AddToCart_And_RemoveFromCart_ShouldWork()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var touristId = Guid.NewGuid();
         var guideId = Guid.NewGuid();
         var tour = await service.CreateTourAsync(new CreateTourRequest
@@ -91,7 +96,9 @@ public class TourPurchaseAndCartTests
     public async Task PurchaseTour_ShouldRemoveFromCart()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var touristId = Guid.NewGuid();
         var guideId = Guid.NewGuid();
         

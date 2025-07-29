@@ -5,6 +5,7 @@ using TourApp.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Authorization;
 using TourApp.Domain;
+using System.Security.Claims;
 
 namespace TourApp.API.Controllers;
 
@@ -17,6 +18,7 @@ public class UsersController : ControllerBase
     public UsersController(TourAppDbContext dbContext)
     {
         _userService = new UserService(dbContext);
+        _dbContext = dbContext;
     }
 
     [HttpPost("register")]
@@ -92,6 +94,25 @@ public class UsersController : ControllerBase
         {
             await emailService.SendTestEmailAsync(request.Email);
             return Ok(new { message = "Test email sent successfully" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpPost("update-interests")]
+    [Authorize(Roles = "Tourist")]
+    public async Task<IActionResult> UpdateInterests([FromBody] UpdateInterestsRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null)
+            return Forbid();
+        
+        try
+        {
+            await _userService.UpdateInterestsAsync(Guid.Parse(userId), request.Interests);
+            return Ok(new { message = "Interests updated successfully" });
         }
         catch (Exception ex)
         {

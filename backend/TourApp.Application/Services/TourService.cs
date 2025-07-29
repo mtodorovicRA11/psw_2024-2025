@@ -8,12 +8,17 @@ namespace TourApp.Application.Services;
 public class TourService
 {
     private readonly TourAppDbContext _dbContext;
-    public TourService(TourAppDbContext dbContext)
+    private readonly IProblemEventStore _eventStore;
+    private readonly UserService _userService;
+    
+    public TourService(TourAppDbContext dbContext, IProblemEventStore eventStore, UserService userService)
     {
         _dbContext = dbContext;
+        _eventStore = eventStore;
+        _userService = userService;
     }
 
-    public async Task<Tour> CreateTourAsync(CreateTourRequest request, Guid guideId)
+    public async Task<Tour> CreateTourAsync(CreateTourRequest request, Guid guideId, EmailService emailService = null)
     {
         // Konvertuj datum u UTC format
         var utcDate = DateTime.SpecifyKind(request.Date, DateTimeKind.Utc);
@@ -33,6 +38,13 @@ public class TourService
         };
         _dbContext.Tours.Add(tour);
         await _dbContext.SaveChangesAsync();
+
+        // Pošalji preporuke turistima čija interesovanja se poklapaju sa kategorijom ture
+        if (emailService != null)
+        {
+            await SendTourRecommendationsAsync(tour, emailService);
+        }
+
         return tour;
     }
 
@@ -107,6 +119,10 @@ public class TourService
 
         tour.State = TourState.Cancelled;
         await _dbContext.SaveChangesAsync();
+
+        // Check if guide should be marked as malicious after cancelling tour
+        await _userService.CheckAndMarkMaliciousGuideAsync(guideId);
+
         return tour;
     }
 
@@ -131,6 +147,22 @@ public class TourService
             query = query.Where(t => awardedGuideIds.Contains(t.GuideId));
         }
         return await query.ToListAsync();
+    }
+
+    public async Task<List<Tour>> GetPurchasedToursAsync(Guid touristId)
+    {
+        var purchasedTourIds = await _dbContext.Purchases
+            .Where(p => p.TouristId == touristId)
+            .Select(p => p.TourId)
+            .ToListAsync();
+        
+        var tours = await _dbContext.Tours
+            .Include(t => t.KeyPoints)
+            .Where(t => purchasedTourIds.Contains(t.Id))
+            .OrderByDescending(t => t.Date)
+            .ToListAsync();
+        
+        return tours;
     }
 
     public async Task<Purchase> PurchaseTourAsync(PurchaseTourRequest request, Guid touristId, EmailService emailService)
@@ -230,10 +262,18 @@ public class TourService
         _dbContext.TourProblems.Add(problem);
         await _dbContext.SaveChangesAsync();
 
-        // Send problem report notification email
-        if (tour != null && user != null)
+        // Create event for problem creation
+        var createdEvent = new ProblemCreatedEvent(problem.Id, touristId, request.TourId, request.Title, request.Description);
+        await _eventStore.SaveEventAsync(createdEvent);
+
+        // Send problem report notification email to guide
+        if (tour != null)
         {
-            await emailService.SendProblemReportNotificationAsync(user.Email, user.Username, tour.Name);
+            var guide = await _dbContext.Users.FindAsync(tour.GuideId);
+            if (guide != null)
+            {
+                await emailService.SendProblemReportNotificationAsync(guide.Email, guide.Username, tour.Name, user?.FirstName ?? "Turista");
+            }
         }
 
         return problem;
@@ -247,18 +287,55 @@ public class TourService
         var tour = await _dbContext.Tours.FindAsync(problem.TourId);
         if (tour == null)
             throw new Exception("Tour not found");
-        // Vodič može menjati status samo za svoje ture
-        if (userRole == UserRole.Guide && tour.GuideId != userId)
-            throw new Exception("Not authorized");
-        // Admin može menjati status bilo kog problema
+        
         // Turista ne može menjati status
         if (userRole == UserRole.Tourist)
             throw new Exception("Not authorized");
+        
+        // Validacija prelaza stanja
+        if (!IsValidStatusTransition(problem.Status, request.NewStatus, userRole))
+            throw new Exception($"Invalid status transition from {problem.Status} to {request.NewStatus} for role {userRole}");
+        
+        // Vodič može menjati status samo za svoje ture
+        if (userRole == UserRole.Guide && tour.GuideId != userId)
+            throw new Exception("Not authorized");
+        
         // Logika prelaska stanja
+        var oldStatus = problem.Status;
         problem.Status = request.NewStatus;
         problem.UpdatedAt = DateTime.UtcNow;
         await _dbContext.SaveChangesAsync();
+
+        // Create event for status change
+        var statusChangedEvent = new ProblemStatusChangedEvent(problem.Id, userId.ToString(), userRole, oldStatus, request.NewStatus, request.Comment);
+        await _eventStore.SaveEventAsync(statusChangedEvent);
+
+        // Check if tourist should be marked as malicious when problem is rejected
+        if (request.NewStatus == ProblemStatus.Rejected)
+        {
+            await _userService.CheckAndMarkMaliciousTouristAsync(problem.TouristId);
+        }
+
         return problem;
+    }
+
+    private bool IsValidStatusTransition(ProblemStatus currentStatus, ProblemStatus newStatus, UserRole userRole)
+    {
+        switch (userRole)
+        {
+            case UserRole.Guide:
+                // Vodič može: Pending → Resolved ili Pending → UnderReview
+                return (currentStatus == ProblemStatus.Pending && 
+                       (newStatus == ProblemStatus.Resolved || newStatus == ProblemStatus.UnderReview));
+            
+            case UserRole.Admin:
+                // Admin može: UnderReview → Pending, UnderReview → Rejected, ili UnderReview → Resolved
+                return (currentStatus == ProblemStatus.UnderReview && 
+                       (newStatus == ProblemStatus.Pending || newStatus == ProblemStatus.Rejected || newStatus == ProblemStatus.Resolved));
+            
+            default:
+                return false;
+        }
     }
 
     // Korpom upravljamo u memoriji po korisniku (za demo svrhe, u realnom sistemu bi se koristila baza ili redis)
@@ -311,17 +388,38 @@ public class TourService
     {
         var now = DateTime.UtcNow;
         var reminderTime = now.AddHours(48);
-        var purchases = await _dbContext.Purchases
-            .Where(p => p.PurchaseDate < reminderTime && p.PurchaseDate > now)
-            .ToListAsync();
-        foreach (var purchase in purchases)
+        
+        // Pronađi sve ture koje se održavaju za 48h i koje su kupljene
+        var toursToRemind = await (from t in _dbContext.Tours
+                                  join p in _dbContext.Purchases on t.Id equals p.TourId
+                                  join u in _dbContext.Users on p.TouristId equals u.Id
+                                  where t.Date >= now && t.Date <= reminderTime
+                                  select new { Tour = t, Purchase = p, User = u }).ToListAsync();
+        
+        foreach (var item in toursToRemind)
         {
-            var tour = await _dbContext.Tours.FindAsync(purchase.TourId);
-            if (tour == null) continue;
-            var user = await _dbContext.Users.FindAsync(purchase.TouristId);
-            if (user == null) continue;
+            var tour = item.Tour;
+            var user = item.User;
+            
             var subject = $"Podsetnik: Vaša tura '{tour.Name}' se održava za 48h";
-            var body = $"Poštovani {user.FirstName},\n\nPodsećamo vas da ste kupili turu '{tour.Name}' koja se održava {tour.Date}.\n\nOpis: {tour.Description}\nCena: {tour.Price}\nVodič: {tour.GuideId}";
+            var body = $@"
+                <h2>Podsetnik za turu</h2>
+                <p>Poštovani {user.FirstName},</p>
+                <p>Podsećamo vas da ste kupili turu <strong>'{tour.Name}'</strong> koja se održava <strong>{tour.Date:dd.MM.yyyy HH:mm}</strong>.</p>
+                
+                <h3>Detalji ture:</h3>
+                <ul>
+                    <li><strong>Naziv:</strong> {tour.Name}</li>
+                    <li><strong>Opis:</strong> {tour.Description}</li>
+                    <li><strong>Kategorija:</strong> {tour.Category}</li>
+                    <li><strong>Težina:</strong> {tour.Difficulty}</li>
+                    <li><strong>Cena:</strong> {tour.Price} RSD</li>
+                    <li><strong>Datum i vreme:</strong> {tour.Date:dd.MM.yyyy HH:mm}</li>
+                </ul>
+                
+                <p>Uživajte u vašoj turi!</p>
+                <p>Vaš TourApp tim</p>";
+            
             await emailService.SendEmailAsync(user.Email, subject, body);
         }
     }
@@ -409,15 +507,47 @@ public class TourService
         }
     }
 
-    public async Task<List<TourProblem>> GetProblemsForTouristAsync(Guid touristId)
+    public async Task<List<TouristProblemDto>> GetProblemsForTouristAsync(Guid touristId)
     {
-        return await _dbContext.TourProblems.Where(p => p.TouristId == touristId).ToListAsync();
+        var problems = await (from p in _dbContext.TourProblems
+                             join t in _dbContext.Tours on p.TourId equals t.Id
+                             where p.TouristId == touristId
+                             select new TouristProblemDto
+                             {
+                                 Id = p.Id,
+                                 TourId = p.TourId,
+                                 TourName = t.Name,
+                                 Title = p.Title,
+                                 Description = p.Description,
+                                 Status = p.Status.ToString(),
+                                 CreatedAt = p.CreatedAt,
+                                 UpdatedAt = p.UpdatedAt
+                             }).ToListAsync();
+
+        return problems;
     }
 
-    public async Task<List<TourProblem>> GetProblemsForGuideAsync(Guid guideId)
+    public async Task<List<GuideProblemDto>> GetProblemsForGuideAsync(Guid guideId)
     {
-        var tourIds = await _dbContext.Tours.Where(t => t.GuideId == guideId).Select(t => t.Id).ToListAsync();
-        return await _dbContext.TourProblems.Where(p => tourIds.Contains(p.TourId)).ToListAsync();
+        var problems = await (from p in _dbContext.TourProblems
+                             join t in _dbContext.Tours on p.TourId equals t.Id
+                             join u in _dbContext.Users on p.TouristId equals u.Id
+                             where t.GuideId == guideId
+                             select new GuideProblemDto
+                             {
+                                 Id = p.Id,
+                                 TourId = p.TourId,
+                                 TourName = t.Name,
+                                 TouristId = p.TouristId,
+                                 TouristName = $"{u.FirstName} {u.LastName}".Trim(),
+                                 Title = p.Title,
+                                 Description = p.Description,
+                                 Status = p.Status.ToString(),
+                                 CreatedAt = p.CreatedAt,
+                                 UpdatedAt = p.UpdatedAt
+                             }).ToListAsync();
+
+        return problems;
     }
 
     public async Task<List<AdminProblemDto>> GetAllProblemsAsync()
@@ -448,5 +578,15 @@ public class TourService
             Console.WriteLine($"Error in GetAllProblemsAsync: {ex.Message}");
             throw;
         }
+    }
+
+    public async Task<List<ProblemEvent>> GetProblemEventsAsync(Guid problemId)
+    {
+        return await _eventStore.GetEventsForProblemAsync(problemId);
+    }
+
+    public async Task<List<ProblemEvent>> GetAllProblemEventsAsync()
+    {
+        return await _eventStore.GetAllEventsAsync();
     }
 } 

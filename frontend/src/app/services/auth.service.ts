@@ -108,4 +108,8 @@ export class AuthService {
     }
     return { token: null, user: null };
   }
+
+  updateInterests(interests: string[]): Observable<any> {
+    return this.http.post(`${environment.apiUrl}/api/Users/update-interests`, { interests });
+  }
 } 

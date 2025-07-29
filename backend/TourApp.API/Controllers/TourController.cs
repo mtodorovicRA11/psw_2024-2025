@@ -16,15 +16,15 @@ public class TourController : ControllerBase
     private readonly TourService _tourService;
     private readonly TourAppDbContext _dbContext;
     
-    public TourController(TourAppDbContext dbContext)
+    public TourController(TourAppDbContext dbContext, IProblemEventStore eventStore, UserService userService)
     {
-        _tourService = new TourService(dbContext);
+        _tourService = new TourService(dbContext, eventStore, userService);
         _dbContext = dbContext;
     }
 
     [HttpPost]
     [Authorize(Roles = "Guide")]
-    public async Task<IActionResult> CreateTour([FromBody] CreateTourRequest request)
+    public async Task<IActionResult> CreateTour([FromBody] CreateTourRequest request, [FromServices] EmailService emailService)
     {
         var guideId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (guideId == null)
@@ -34,7 +34,7 @@ public class TourController : ControllerBase
         
         try
         {
-            var tour = await _tourService.CreateTourAsync(request, Guid.Parse(guideId));
+            var tour = await _tourService.CreateTourAsync(request, Guid.Parse(guideId), emailService);
             return Ok(tour);
         }
         catch (Exception ex)
@@ -190,6 +190,54 @@ public class TourController : ControllerBase
     {
         var tours = await _tourService.GetPublishedToursAsync(category, guideId, onlyAwardedGuides);
         return Ok(tours);
+    }
+
+    [HttpGet("purchased")]
+    [Authorize(Roles = "Tourist")]
+    public async Task<IActionResult> GetPurchasedTours()
+    {
+        var touristId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (touristId == null)
+            return Forbid();
+        try
+        {
+            var tours = await _tourService.GetPurchasedToursAsync(Guid.Parse(touristId));
+            return Ok(tours);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("problems/{problemId}/events")]
+    [Authorize(Roles = "Guide,Admin")]
+    public async Task<IActionResult> GetProblemEvents(Guid problemId)
+    {
+        try
+        {
+            var events = await _tourService.GetProblemEventsAsync(problemId);
+            return Ok(events);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
+    [HttpGet("problems/events")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAllProblemEvents()
+    {
+        try
+        {
+            var events = await _tourService.GetAllProblemEventsAsync();
+            return Ok(events);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
     }
 
     [HttpPost("rate")]

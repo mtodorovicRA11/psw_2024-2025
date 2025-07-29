@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Moq;
 
 namespace TourApp.Tests;
 
@@ -25,7 +26,9 @@ public class TourServiceTests
     public async Task CreateTour_ShouldCreateDraftTour_ForGuide()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var guideId = Guid.NewGuid();
         var request = new CreateTourRequest
         {
@@ -46,7 +49,9 @@ public class TourServiceTests
     public async Task AddKeyPoint_ShouldAddKeyPointToDraftTour()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var guideId = Guid.NewGuid();
         var tour = await service.CreateTourAsync(new CreateTourRequest
         {
@@ -74,7 +79,9 @@ public class TourServiceTests
     public async Task PublishTour_ShouldSetStateToPublished_WhenValid()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var guideId = Guid.NewGuid();
         var tour = await service.CreateTourAsync(new CreateTourRequest
         {
@@ -96,7 +103,9 @@ public class TourServiceTests
     public async Task CancelTour_ShouldSetStateToCancelled_AndGiveBonusPoints()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var guideId = Guid.NewGuid();
         var touristId = Guid.NewGuid();
         var tour = await service.CreateTourAsync(new CreateTourRequest

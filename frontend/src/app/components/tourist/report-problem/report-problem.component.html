@@ -8,6 +8,16 @@
     <mat-card-content>
       <form (ngSubmit)="submitProblem()" #problemForm="ngForm">
         <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Naslov problema</mat-label>
+          <input 
+            matInput 
+            [(ngModel)]="problem.title" 
+            name="title" 
+            required
+            placeholder="Kratak naslov problema...">
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="full-width">
           <mat-label>Opis problema</mat-label>
           <textarea 
             matInput 

@@ -182,10 +182,10 @@ export class AdminDashboardComponent implements OnInit {
 
   getStatusLabel(status: string): string {
     switch (status) {
-      case 'Pending': return 'Prijavljeno';
-      case 'UnderReview': return 'U toku';
+      case 'Pending': return 'Na čekanju';
+      case 'UnderReview': return 'Na reviziji';
       case 'Resolved': return 'Rešeno';
-      case 'Rejected': return 'Odbijeno';
+      case 'Rejected': return 'Odbacen';
       default: return status;
     }
   }
@@ -195,8 +195,61 @@ export class AdminDashboardComponent implements OnInit {
       case 'Pending': return 'warn';
       case 'UnderReview': return 'accent';
       case 'Resolved': return 'primary';
-      case 'Rejected': return '';
-      default: return '';
+      case 'Rejected': return 'warn';
+      default: return 'primary';
+    }
+  }
+
+  getAvailableStatusOptions(currentStatus: string): string[] {
+    console.log('Getting available status options for:', currentStatus);
+    switch (currentStatus) {
+      case 'UnderReview':
+        return ['Pending', 'Rejected', 'Resolved'];
+      case 'Pending':
+        // Admin može da vidi probleme na čekanju, ali ne može da ih menja
+        // Vodič treba prvo da ih pošalje na reviziju
+        return [];
+      default:
+        return [];
+    }
+  }
+
+  getStatusTransitionLabel(currentStatus: string, newStatus: string): string {
+    switch (newStatus) {
+      case 'Pending':
+        return 'Vrati na čekanje';
+      case 'Rejected':
+        return 'Odbaci problem';
+      case 'Resolved':
+        return 'Reši problem';
+      default:
+        return newStatus;
+    }
+  }
+
+  getStatusButtonColor(status: string): string {
+    switch (status) {
+      case 'Pending':
+        return 'primary';
+      case 'Rejected':
+        return 'warn';
+      case 'Resolved':
+        return 'accent';
+      default:
+        return 'primary';
+    }
+  }
+
+  getStatusIcon(status: string): string {
+    switch (status) {
+      case 'Pending':
+        return 'schedule';
+      case 'Rejected':
+        return 'close';
+      case 'Resolved':
+        return 'check';
+      default:
+        return 'help';
     }
   }
 

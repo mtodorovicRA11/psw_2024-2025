@@ -13,6 +13,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDialogModule } from '@angular/material/dialog';
 import { MatTableModule } from '@angular/material/table';
 import { MatBadgeModule } from '@angular/material/badge';
+import { MatChipsModule } from '@angular/material/chips';
 import { TourService, Tour } from '../../../services/tour.service';
 import { AuthService } from '../../../services/auth.service';
 import { MapComponent } from '../../shared/map/map.component';
@@ -60,6 +61,7 @@ interface TourRatingInfo {
     MatDialogModule,
     MatTableModule,
     MatBadgeModule,
+    MatChipsModule,
     MapComponent
   ],
   templateUrl: './guide-dashboard.component.html',
@@ -84,6 +86,15 @@ export class GuideDashboardComponent implements OnInit {
   selectedYear: number = new Date().getFullYear();
   selectedMonth: number = new Date().getMonth() + 1;
   salesColumns: string[] = ['name', 'salesCount'];
+  
+  // Problem-related properties
+  myProblems: any[] = [];
+  problemsLoading = false;
+  problemColumns = ['tourName', 'touristName', 'title', 'description', 'status', 'actions'];
+  selectedProblemForEvents: any = null;
+  problemEvents: any[] = [];
+  eventsLoading = false;
+  showEventsModal = false;
 
   newTour = {
     Name: '',
@@ -154,24 +165,23 @@ export class GuideDashboardComponent implements OnInit {
 
   ngOnInit() {
     this.loadTours();
+    this.loadMyProblems();
   }
 
   loadTours() {
     this.isLoading = true;
     this.tourService.getMyTours(this.selectedState).subscribe({
       next: (tours: Tour[]) => {
-        setTimeout(() => {
-          this.tours = tours;
-          // Automatically load tour routes for map
-          this.loadTourRoutes();
-          this.isLoading = false;
-        });
+        this.tours = tours;
+        // Automatically load tour routes for map
+        this.loadTourRoutes();
+        this.isLoading = false;
+        this.cdr.detectChanges();
       },
       error: (error: any) => {
         console.error('Error loading tours:', error);
-        setTimeout(() => {
-          this.isLoading = false;
-        });
+        this.isLoading = false;
+        this.cdr.detectChanges();
       }
     });
   }
@@ -229,14 +239,14 @@ export class GuideDashboardComponent implements OnInit {
       this.tourService.createTour(tourData).subscribe({
         next: () => {
           console.log('Tour created successfully');
-          setTimeout(() => {
-            this.onTourCreated();
-            this.isCreatingTour = false;
-          });
+          this.onTourCreated();
+          this.isCreatingTour = false;
+          this.cdr.detectChanges();
         },
         error: (error: any) => {
           console.error('Error creating tour:', error);
           this.isCreatingTour = false;
+          this.cdr.detectChanges();
         }
       });
     }
@@ -246,6 +256,7 @@ export class GuideDashboardComponent implements OnInit {
     this.showCreateForm = false;
     this.resetNewTour();
     this.loadTours();
+    this.cdr.detectChanges();
   }
 
   resetNewTour() {
@@ -260,25 +271,55 @@ export class GuideDashboardComponent implements OnInit {
   }
 
   publishTour(tourId: string) {
+    // Find the tour and update its loading state
+    const tour = this.tours.find(t => t.Id === tourId);
+    if (tour) {
+      tour.isPublishing = true;
+      this.cdr.detectChanges();
+    }
+
     this.tourService.publishTour(tourId).subscribe({
       next: () => {
         console.log('Tour published successfully');
+        if (tour) {
+          tour.isPublishing = false;
+        }
         this.loadTours();
+        this.cdr.detectChanges();
       },
       error: (error: any) => {
         console.error('Error publishing tour:', error);
+        if (tour) {
+          tour.isPublishing = false;
+        }
+        this.cdr.detectChanges();
       }
     });
   }
 
   cancelTour(tourId: string) {
+    // Find the tour and update its loading state
+    const tour = this.tours.find(t => t.Id === tourId);
+    if (tour) {
+      tour.isCancelling = true;
+      this.cdr.detectChanges();
+    }
+
     this.tourService.cancelTour(tourId).subscribe({
       next: () => {
         console.log('Tour cancelled successfully');
+        if (tour) {
+          tour.isCancelling = false;
+        }
         this.loadTours();
+        this.cdr.detectChanges();
       },
       error: (error: any) => {
         console.error('Error cancelling tour:', error);
+        if (tour) {
+          tour.isCancelling = false;
+        }
+        this.cdr.detectChanges();
       }
     });
   }
@@ -305,6 +346,7 @@ export class GuideDashboardComponent implements OnInit {
           this.showKeyPointModal = false;
           this.resetNewKeyPoint();
           this.loadTours();
+          this.cdr.detectChanges();
         },
         error: (error: any) => {
           console.error('Error adding key point:', error);
@@ -383,6 +425,197 @@ export class GuideDashboardComponent implements OnInit {
       case 'Medium': return 'Srednje';
       case 'Hard': return 'Teško';
       default: return difficulty;
+    }
+  }
+
+  loadMyProblems() {
+    this.problemsLoading = true;
+    this.tourService.getGuideProblems().subscribe({
+      next: (problems: any[]) => {
+        console.log('Guide problems loaded:', problems);
+        this.myProblems = problems;
+        this.problemsLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('Error loading guide problems:', error);
+        this.problemsLoading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  updateProblemStatus(problemId: string, newStatus: string) {
+    this.tourService.updateProblemStatus(problemId, newStatus).subscribe({
+      next: () => {
+        console.log('Problem status updated successfully');
+        this.loadMyProblems(); // Reload problems after update
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('Error updating problem status:', error);
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  getProblemStatusColor(status: string): string {
+    switch (status) {
+      case 'Pending': return 'warn';
+      case 'Resolved': return 'primary';
+      case 'UnderReview': return 'accent';
+      case 'Rejected': return 'warn';
+      default: return 'primary';
+    }
+  }
+
+  getProblemStatusLabel(status: string): string {
+    switch (status) {
+      case 'Pending': return 'Na čekanju';
+      case 'Resolved': return 'Rešeno';
+      case 'UnderReview': return 'Na reviziji';
+      case 'Rejected': return 'Odbacen';
+      default: return status;
+    }
+  }
+
+  getAvailableStatusOptions(currentStatus: string): string[] {
+    switch (currentStatus) {
+      case 'Pending':
+        return ['Resolved', 'UnderReview'];
+      case 'UnderReview':
+        return ['Pending', 'Rejected'];
+      default:
+        return [];
+    }
+  }
+
+  getStatusTransitionLabel(currentStatus: string, newStatus: string): string {
+    switch (newStatus) {
+      case 'Resolved':
+        return 'Označi kao rešen';
+      case 'UnderReview':
+        return 'Pošalji na reviziju';
+      case 'Pending':
+        return 'Vrati na čekanje';
+      case 'Rejected':
+        return 'Odbaci problem';
+      default:
+        return newStatus;
+    }
+  }
+
+  getStatusButtonColor(status: string): string {
+    switch (status) {
+      case 'Resolved':
+        return 'primary';
+      case 'UnderReview':
+        return 'accent';
+      case 'Pending':
+        return 'primary';
+      case 'Rejected':
+        return 'warn';
+      default:
+        return 'primary';
+    }
+  }
+
+  getStatusIcon(status: string): string {
+    switch (status) {
+      case 'Resolved':
+        return 'check';
+      case 'UnderReview':
+        return 'send';
+      case 'Pending':
+        return 'schedule';
+      case 'Rejected':
+        return 'close';
+      default:
+        return 'help';
+    }
+  }
+
+  showProblemEvents(problem: any) {
+    this.selectedProblemForEvents = problem;
+    this.showEventsModal = true;
+    this.eventsLoading = true; // Inicijalizujemo loading stanje
+    this.problemEvents = []; // Resetujemo events
+    // Koristimo setTimeout da izbegnemo ExpressionChangedAfterItHasBeenCheckedError
+    setTimeout(() => {
+      this.loadProblemEvents(problem.Id);
+    }, 0);
+  }
+
+  loadProblemEvents(problemId: string) {
+    this.tourService.getProblemEvents(problemId).subscribe({
+      next: (events: any[]) => {
+        this.problemEvents = events;
+        this.eventsLoading = false;
+        this.cdr.detectChanges();
+      },
+      error: (error: any) => {
+        console.error('Error loading problem events:', error);
+        this.eventsLoading = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  closeEventsModal() {
+    this.showEventsModal = false;
+    this.selectedProblemForEvents = null;
+    this.problemEvents = [];
+    this.eventsLoading = false; // Resetujemo loading stanje
+  }
+
+  getEventTypeLabel(eventType: string): string {
+    switch (eventType) {
+      case 'ProblemCreatedEvent':
+        return 'Problem kreiran';
+      case 'ProblemStatusChangedEvent':
+        return 'Status promenjen';
+      default:
+        return eventType;
+    }
+  }
+
+  getEventUserRoleLabel(userRole: string): string {
+    switch (userRole) {
+      case 'Tourist':
+        return 'Turista';
+      case 'Guide':
+        return 'Vodič';
+      case 'Admin':
+        return 'Administrator';
+      default:
+        return userRole;
+    }
+  }
+
+  formatEventDate(date: string): string {
+    try {
+      if (!date) return 'Nepoznat datum';
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return 'Neispravan datum';
+      return dateObj.toLocaleString('sr-RS');
+    } catch (error) {
+      console.error('Error formatting date:', error, date);
+      return 'Greška pri formatiranju datuma';
+    }
+  }
+
+  getStatusClass(status: string): string {
+    switch (status) {
+      case 'Pending':
+        return 'status-pending';
+      case 'Resolved':
+        return 'status-resolved';
+      case 'UnderReview':
+        return 'status-under-review';
+      case 'Rejected':
+        return 'status-rejected';
+      default:
+        return 'status-pending';
     }
   }
 } 

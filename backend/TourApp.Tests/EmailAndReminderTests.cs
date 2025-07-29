@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Moq;
 
 namespace TourApp.Tests;
 
@@ -52,7 +53,9 @@ public class EmailAndReminderTests
             .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
             .Options;
         var dbContext = new TourAppDbContext(options);
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var emailService = new EmailService(configuration);
         dbContext.Users.Add(new User { Id = Guid.NewGuid(), Username = "t", PasswordHash = "x", Role = UserRole.Tourist, Email = "t@t.com", Interests = new List<Interest> { Interest.Nature } });
         await dbContext.SaveChangesAsync();

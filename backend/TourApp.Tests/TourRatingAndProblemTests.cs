@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using Moq;
 
 namespace TourApp.Tests;
 
@@ -25,7 +26,9 @@ public class TourRatingAndProblemTests
     public async Task RateTour_ShouldCreateRating_WhenValid()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var guideId = Guid.NewGuid();
         var touristId = Guid.NewGuid();
         var tour = await service.CreateTourAsync(new CreateTourRequest
@@ -54,7 +57,9 @@ public class TourRatingAndProblemTests
     public async Task ReportProblem_ShouldCreateProblem()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var guideId = Guid.NewGuid();
         var touristId = Guid.NewGuid();
         var tour = await service.CreateTourAsync(new CreateTourRequest
@@ -94,7 +99,9 @@ public class TourRatingAndProblemTests
     public async Task UpdateProblemStatus_ShouldChangeStatus_WhenAdmin()
     {
         var dbContext = GetInMemoryDbContext();
-        var service = new TourService(dbContext);
+        var eventStore = new Mock<IProblemEventStore>().Object;
+        var userService = new UserService(dbContext);
+        var service = new TourService(dbContext, eventStore, userService);
         var adminId = Guid.NewGuid();
         var touristId = Guid.NewGuid();
         var guideId = Guid.NewGuid();

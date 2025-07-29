@@ -13,6 +13,7 @@ public class TourAppDbContext : DbContext
     public DbSet<Purchase> Purchases { get; set; }
     public DbSet<TourRating> TourRatings => Set<TourRating>();
     public DbSet<TourProblem> TourProblems => Set<TourProblem>();
+    public DbSet<ProblemEventEntity> ProblemEvents => Set<ProblemEventEntity>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

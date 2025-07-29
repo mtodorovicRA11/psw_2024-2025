@@ -51,7 +51,9 @@ builder.Services.AddControllers()
 
 // Register services
 builder.Services.AddScoped<EmailService>();
+builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<ScheduledJobService>();
+builder.Services.AddScoped<IProblemEventStore, ProblemEventStore>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
