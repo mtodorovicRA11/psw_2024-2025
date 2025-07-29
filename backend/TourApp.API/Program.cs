@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Hangfire.Dashboard;
 
 var builder = WebApplication.CreateBuilder(args);
 

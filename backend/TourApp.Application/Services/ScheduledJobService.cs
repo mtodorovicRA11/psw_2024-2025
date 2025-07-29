@@ -1,4 +1,6 @@
 using TourApp.Infrastructure;
+using TourApp.Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace TourApp.Application.Services;
 
