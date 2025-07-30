@@ -426,12 +426,26 @@ public class TourService
 
     public async Task<GuideReportDto> GetGuideMonthlyReportAsync(Guid guideId, int year, int month)
     {
-        var tours = await _dbContext.Tours.Where(t => t.GuideId == guideId && t.Date.Year == year && t.Date.Month == month).ToListAsync();
+        // Pronađi sve ture koje se održavaju u određenom mesecu
+        var tours = await _dbContext.Tours
+            .Where(t => t.GuideId == guideId && t.Date.Year == year && t.Date.Month == month)
+            .ToListAsync();
+        
         var tourIds = tours.Select(t => t.Id).ToList();
-        var purchases = await _dbContext.Purchases.Where(p => tourIds.Contains(p.TourId) && p.PurchaseDate.Year == year && p.PurchaseDate.Month == month).ToListAsync();
-        var ratings = await _dbContext.TourRatings.Where(r => tourIds.Contains(r.TourId)).ToListAsync();
+        
+        // Pronađi sve kupovine za te ture (bez filtriranja po datumu kupovine)
+        var purchases = await _dbContext.Purchases
+            .Where(p => tourIds.Contains(p.TourId))
+            .ToListAsync();
+        
+        // Pronađi sve ocene za te ture
+        var ratings = await _dbContext.TourRatings
+            .Where(r => tourIds.Contains(r.TourId))
+            .ToListAsync();
 
         var report = new GuideReportDto();
+        
+        // Izračunaj prodaju za svaku turu
         foreach (var tour in tours)
         {
             var salesCount = purchases.Count(p => p.TourId == tour.Id);
@@ -442,11 +456,14 @@ public class TourService
                 SalesCount = salesCount
             });
         }
+        
+        // Pronađi najbolje i najgore ocenjene ture
         var ratedTours = tours.Select(t => new
         {
             Tour = t,
             Ratings = ratings.Where(r => r.TourId == t.Id).ToList()
         }).Where(x => x.Ratings.Any()).ToList();
+        
         if (ratedTours.Any())
         {
             var best = ratedTours.OrderByDescending(x => x.Ratings.Average(r => r.Rating)).First();
@@ -457,6 +474,7 @@ public class TourService
                 AverageRating = best.Ratings.Average(r => r.Rating),
                 RatingsCount = best.Ratings.Count
             };
+            
             var worst = ratedTours.OrderBy(x => x.Ratings.Average(r => r.Rating)).First();
             report.WorstRatedTour = new TourRatingInfo
             {
@@ -466,6 +484,7 @@ public class TourService
                 RatingsCount = worst.Ratings.Count
             };
         }
+        
         return report;
     }
 
@@ -496,9 +515,15 @@ public class TourService
     public async Task SendTourRecommendationsAsync(Tour tour, EmailService emailService)
     {
         // Pronađi sve turiste čija interesovanja sadrže kategoriju nove ture
-        var interestedTourists = await _dbContext.Users
-            .Where(u => u.Role == UserRole.Tourist && u.Interests.Contains((Interest)tour.Category))
+        // Koristimo AsEnumerable() jer EF ne može da prevede Contains na Interests listu
+        var allTourists = await _dbContext.Users
+            .Where(u => u.Role == UserRole.Tourist)
             .ToListAsync();
+            
+        var interestedTourists = allTourists
+            .Where(u => u.Interests.Contains((Interest)tour.Category))
+            .ToList();
+            
         foreach (var user in interestedTourists)
         {
             var subject = $"Preporuka: Nova tura iz oblasti vaših interesovanja - {tour.Name}";

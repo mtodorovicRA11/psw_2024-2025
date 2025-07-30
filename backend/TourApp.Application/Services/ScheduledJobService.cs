@@ -134,10 +134,14 @@ public class ScheduledJobService
     private async Task SendTourRecommendationsAsync(Tour tour, EmailService emailService)
     {
         // Pronađi sve turiste čija interesovanja sadrže kategoriju nove ture
-        var interestedTourists = await _dbContext.Users
-            .Where(u => u.Role == TourApp.Domain.UserRole.Tourist && 
-                       u.Interests.Contains((TourApp.Domain.Interest)tour.Category))
+        // Koristimo client-side evaluaciju jer EF ne može da prevede Contains na Interests listu
+        var allTourists = await _dbContext.Users
+            .Where(u => u.Role == TourApp.Domain.UserRole.Tourist)
             .ToListAsync();
+            
+        var interestedTourists = allTourists
+            .Where(u => u.Interests.Contains((TourApp.Domain.Interest)tour.Category))
+            .ToList();
             
         foreach (var user in interestedTourists)
         {
